@@ -1,0 +1,6 @@
+id: soc2
+title: SOC 2 (Trust Services Criteria)
+crosswalk: nist-800-53
+controls:
+  - { id: CC6.1, title: Logical Access - Encryption, maps_to: [SC-13] }
+  - { id: CC7.2, title: System Monitoring, maps_to: [AU-2] }

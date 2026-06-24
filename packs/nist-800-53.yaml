@@ -1,0 +1,12 @@
+id: nist-800-53
+title: NIST SP 800-53 Rev 5
+controls:
+  - id: SC-13
+    title: Cryptographic Protection
+    checks:
+      - { engine: checkov, ids: [CKV_AWS_19, CKV_AWS_5] }
+      - { engine: semgrep, ids: [weak-cipher] }
+  - id: AU-2
+    title: Audit Events
+    checks:
+      - { engine: checkov, ids: [CKV_AWS_67] }
