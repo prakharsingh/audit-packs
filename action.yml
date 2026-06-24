@@ -1,0 +1,21 @@
+name: "Audit Packs"
+description: "Map IaC findings to compliance controls and comment on PRs with evidence."
+inputs:
+  frameworks:
+    description: "Comma-separated framework pack ids (e.g. nist-800-53,soc2)."
+    default: "nist-800-53"
+  fail-on:
+    description: "Minimum severity that fails the check (low|medium|high|critical)."
+    default: "high"
+  base-ref:
+    description: "Base git ref to diff against."
+    default: "origin/main"
+runs:
+  using: "docker"
+  image: "Dockerfile"
+  env:
+    FRAMEWORKS: ${{ inputs.frameworks }}
+    FAIL_ON: ${{ inputs.fail-on }}
+    BASE_REF: ${{ inputs.base-ref }}
+    GITHUB_TOKEN: ${{ github.token }}
+    PR_NUMBER: ${{ github.event.pull_request.number }}
