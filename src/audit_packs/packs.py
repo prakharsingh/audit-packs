@@ -36,6 +36,11 @@ def map_findings(findings: list[Finding], packs_dir: str, frameworks: list[str])
             for control in pack["controls"]:
                 for mapped in control.get("maps_to", []):
                     cw[mapped] = (control["id"], control.get("title", control["id"]))
+            if not cw:
+                raise ValueError(
+                    f"crosswalk pack '{fw}' has no 'maps_to' entries in any control; "
+                    f"check that controls use 'maps_to' (not 'nist_ids' or similar)"
+                )
                     
         for f in findings:
             hit = check_index.get((f.engine, f.check_id))

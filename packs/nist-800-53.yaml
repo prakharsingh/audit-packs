@@ -4,7 +4,7 @@ controls:
   - id: SC-13
     title: Cryptographic Protection
     checks:
-      - { engine: checkov, ids: [CKV_AWS_19, CKV_AWS_5] }
+      - { engine: checkov, ids: [CKV_AWS_19, CKV_AWS_5, CKV_AWS_145] }
       - { engine: semgrep, ids: [weak-cipher] }
   - id: AU-2
     title: Audit Events
