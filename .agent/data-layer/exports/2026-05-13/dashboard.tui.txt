@@ -1,0 +1,28 @@
+◇  agentic-stack Data Layer  Terminal Dashboard
+│
+│  project=agentic-stack window=30d bucket=day
+│  generated=2026-05-13T14:21:24.493091Z
+│
+│  Resource Overview
+◆  Agent events   ... 4
+◆  Cron runs      ... 0
+◆  Harnesses      ... 1
+◆  Active agents  ... 4
+◆  Tokens est.    ... 0
+◆  Cost est.      ... $0
+│
+│  Latest Bucket
+│  2026-04-20T00:00:00Z  events=4 cron=0 tokens=0
+│
+│  Top Harnesses
+│  claude-code            [##################] 4
+│
+│  Top Workflows
+│  claude_code            [##################] 4
+│
+│  Top Categories
+│  uncategorized          [##################] 4
+│
+└  Open in browser: /Users/prakhar/fiddles/agentic-stack/.agent/data-layer/exports/2026-05-13/dashboard.html
+│  Terminal copy : /Users/prakhar/fiddles/agentic-stack/.agent/data-layer/exports/2026-05-13/dashboard.tui.txt
+│  Privacy       : local-only; screenshots require explicit user approval

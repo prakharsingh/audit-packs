@@ -1,0 +1,34 @@
+{
+  "id": "d491c52f1b5e",
+  "key": "pattern_audit-packs_projects_volumes_d491c5",
+  "name": "pattern_audit-packs_projects_volumes_d491c5",
+  "claim": "FAILURE in claude-code: Command failed: rtk ls /Volumes/DevSSD/projects/audit-packs/docs/superpowers/plans/ 2>/dev/null || echo \"not found\"",
+  "conditions": [
+    "audit-packs",
+    "bash",
+    "devssd",
+    "projects",
+    "volumes"
+  ],
+  "evidence_ids": [
+    "2026-06-24T11:31:31.861614+00:00",
+    "2026-06-24T11:31:40.355132+00:00",
+    "2026-06-24T11:31:52.041493+00:00",
+    "2026-06-24T11:32:07.697591+00:00",
+    "2026-06-24T11:37:16.993969+00:00",
+    "2026-06-24T11:37:02.178503+00:00",
+    "2026-06-24T11:37:09.796521+00:00"
+  ],
+  "cluster_size": 7,
+  "canonical_salience": 7.199999999999999,
+  "staged_at": "2026-06-24T11:37:22.112965+00:00",
+  "status": "staged",
+  "decisions": [
+    {
+      "ts": "2026-06-24T11:37:22.112965+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    }
+  ],
+  "rejection_count": 0
+}

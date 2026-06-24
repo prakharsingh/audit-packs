@@ -1,0 +1,29 @@
+{
+  "id": "daily_agent_resource_report_2026-05-13",
+  "cadence": "daily",
+  "timezone": "UTC",
+  "generated_at": "2026-05-13T14:21:24.493091Z",
+  "dashboard_html": "dashboard.html",
+  "terminal_dashboard": "dashboard.tui.txt",
+  "daily_report_md": "daily-report.md",
+  "screenshot_target": "dashboard.html",
+  "charts": [
+    "resource_overview",
+    "activity",
+    "tokens",
+    "cron_runs",
+    "task_categories",
+    "harness_mix",
+    "workflow_outcomes",
+    "kpi_summary",
+    "cron_gantt",
+    "cron_timeline"
+  ],
+  "delivery": {
+    "status": "not_configured",
+    "requires_user_approval": true,
+    "note": "Agents can attach screenshots or the daily report only after the user approves a destination."
+  },
+  "privacy_level": "local_only",
+  "pii_level": "unknown"
+}

@@ -1,0 +1,1 @@
+id,created_at,started_at,finished_at,project,harness,schedule,name,workflow,phase,run_type,category,status,duration_ms,tokens_in_estimate,tokens_out_estimate,tokens_total_estimate,cost_estimate_usd,agent_id_hash,privacy_level,pii_level

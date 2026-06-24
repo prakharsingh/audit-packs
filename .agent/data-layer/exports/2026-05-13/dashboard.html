@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>agentic-stack Data Layer Dashboard</title><style>
+body{margin:0;background:#f7f9fb;color:#172033;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{background:#fff;border-bottom:1px solid #d9e0e8;padding:28px 32px}
+h1{margin:0 0 8px;font-size:28px} h2{font-size:18px;margin:0 0 14px}
+p{color:#657286} main{padding:24px 32px 40px;display:grid;gap:18px}
+section{background:#fff;border:1px solid #d9e0e8;border-radius:8px;padding:18px}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.metric{border:1px solid #d9e0e8;border-radius:8px;padding:14px;background:#fbfcfe}
+.metric b{display:block;font-size:28px}.metric span{color:#657286;font-size:13px}
+.bar-row{display:grid;grid-template-columns:160px 1fr 72px;gap:10px;align-items:center;min-height:28px;font-size:13px}
+.track{height:16px;background:#edf2f7;border-radius:4px;overflow:hidden}.bar{height:100%;border-radius:4px}
+.timeline-row{display:grid;grid-template-columns:220px minmax(320px,1fr) 88px;gap:10px;align-items:center;min-height:30px;font-size:13px}
+.timeline-track{height:20px;background:#edf2f7;border-radius:4px;position:relative;overflow:hidden}
+.timeline-bar{position:absolute;top:0;height:100%;background:#0f766e;border-radius:4px}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;border-bottom:1px solid #d9e0e8;padding:8px 6px;vertical-align:top}
+th{color:#657286}.scroll{overflow-x:auto}.footer{font-size:12px;color:#657286}
+</style></head>
+<body><header><h1>agentic-stack Data Layer Dashboard</h1>
+<p>agentic-stack - 30d - bucket: day - generated 2026-05-13T14:21:24.493091Z</p></header>
+<main>
+<section><h2>Resource Overview</h2><div class="grid"><div class='metric'><b>4</b><span>Agent events</span></div><div class='metric'><b>0</b><span>Cron runs</span></div><div class='metric'><b>1</b><span>Harnesses</span></div><div class='metric'><b>4</b><span>Active agents</span></div><div class='metric'><b>0</b><span>Tokens est.</span></div><div class='metric'><b>$0.00</b><span>Cost est.</span></div></div></section>
+<section><h2>KPI Summary</h2><div class="scroll"><table><thead><tr><th>KPI</th><th>Value</th><th>Unit</th><th>Description</th></tr></thead><tbody><tr><td>agent_events</td><td>4</td><td>events</td><td>Non-cron agent actions observed across harnesses.</td></tr><tr><td>cron_runs</td><td>0</td><td>runs</td><td>Scheduled or cron-triggered agent runs.</td></tr><tr><td>cron_runs_per_day</td><td>0.0</td><td>runs/day</td><td>Observed scheduled-agent cadence.</td></tr><tr><td>events_per_day</td><td>4.0</td><td>events/day</td><td>Observed non-cron agent activity cadence.</td></tr><tr><td>active_agents</td><td>4</td><td>agents</td><td>Distinct hashed agent/run identities observed.</td></tr><tr><td>harnesses</td><td>1</td><td>harnesses</td><td>Distinct harnesses such as Claude Code, Hermes, OpenClaw, Codex, or Cursor.</td></tr><tr><td>workflows</td><td>1</td><td>workflows</td><td>Distinct workflow names observed.</td></tr><tr><td>categories</td><td>1</td><td>categories</td><td>User-defined resource categories observed.</td></tr><tr><td>successes</td><td>4</td><td>runs</td><td>Runs marked success.</td></tr><tr><td>errors</td><td>0</td><td>runs</td><td>Runs marked error or failure.</td></tr><tr><td>success_rate</td><td>1.0</td><td>ratio</td><td>Successful runs divided by all observed runs.</td></tr><tr><td>error_rate</td><td>0.0</td><td>ratio</td><td>Errored runs divided by all observed runs.</td></tr><tr><td>median_duration_ms</td><td>None</td><td>ms</td><td>Median duration across runs with duration data.</td></tr><tr><td>tokens_total_estimate</td><td>0</td><td>tokens</td><td>Estimated input plus output tokens.</td></tr><tr><td>tokens_per_run_estimate</td><td>0.0</td><td>tokens/run</td><td>Estimated tokens divided by observed runs.</td></tr><tr><td>cost_estimate_usd</td><td>0</td><td>USD</td><td>Estimated total model/tool cost when supplied by harnesses.</td></tr><tr><td>cost_per_run_estimate_usd</td><td>0.0</td><td>USD/run</td><td>Estimated cost divided by observed runs.</td></tr></tbody></table></div></section>
+<section><h2>Activity By Day</h2><div class='bar-row'><span>2026-04-20T00:00:00Z</span><div class='track'><div class='bar' style='width:100%;background:#0f766e'></div></div><strong>4</strong></div></section>
+<section><h2>Tokens By Day</h2><div class='bar-row'><span>2026-04-20T00:00:00Z</span><div class='track'><div class='bar' style='width:2%;background:#2563eb'></div></div><strong>0</strong></div></section>
+<section><h2>Cron Runs</h2><div class='bar-row'><span>2026-04-20T00:00:00Z</span><div class='track'><div class='bar' style='width:2%;background:#b45309'></div></div><strong>0</strong></div></section>
+<section><h2>Task Categories</h2><div class='bar-row'><span>uncategorized</span><div class='track'><div class='bar' style='width:100%;background:#7c3aed'></div></div><strong>4</strong></div></section>
+<section><h2>Harness Mix</h2><div class='bar-row'><span>claude-code</span><div class='track'><div class='bar' style='width:100%;background:#0369a1'></div></div><strong>4</strong></div></section>
+<section><h2>Workflow Outcomes</h2><div class="scroll"><table><thead><tr><th>Workflow</th><th>Agent events</th><th>Cron runs</th><th>Successes</th><th>Errors</th><th>Success rate</th><th>Tokens</th><th>Cost</th></tr></thead><tbody><tr><td>claude_code</td><td>4</td><td>0</td><td>4</td><td>0</td><td>1.0</td><td>0</td><td>0</td></tr></tbody></table></div></section>
+<section><h2>Cron Gantt</h2><div class="scroll"><p>No cron timeline data yet.</p></div></section>
+<section><h2>Cron Timeline</h2><div class="scroll"><table><thead><tr><th>Name</th><th>Harness</th><th>Workflow</th><th>Category</th><th>Start</th><th>Finish</th><th>Duration ms</th><th>Status</th></tr></thead><tbody></tbody></table></div></section>
+<p class="footer">Local-only dashboard. Review privacy and PII status before sharing screenshots.</p>
+</main></body></html>

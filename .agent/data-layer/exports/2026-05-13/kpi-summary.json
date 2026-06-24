@@ -1,0 +1,104 @@
+[
+  {
+    "kpi": "agent_events",
+    "value": 4,
+    "unit": "events",
+    "description": "Non-cron agent actions observed across harnesses."
+  },
+  {
+    "kpi": "cron_runs",
+    "value": 0,
+    "unit": "runs",
+    "description": "Scheduled or cron-triggered agent runs."
+  },
+  {
+    "kpi": "cron_runs_per_day",
+    "value": 0.0,
+    "unit": "runs/day",
+    "description": "Observed scheduled-agent cadence."
+  },
+  {
+    "kpi": "events_per_day",
+    "value": 4.0,
+    "unit": "events/day",
+    "description": "Observed non-cron agent activity cadence."
+  },
+  {
+    "kpi": "active_agents",
+    "value": 4,
+    "unit": "agents",
+    "description": "Distinct hashed agent/run identities observed."
+  },
+  {
+    "kpi": "harnesses",
+    "value": 1,
+    "unit": "harnesses",
+    "description": "Distinct harnesses such as Claude Code, Hermes, OpenClaw, Codex, or Cursor."
+  },
+  {
+    "kpi": "workflows",
+    "value": 1,
+    "unit": "workflows",
+    "description": "Distinct workflow names observed."
+  },
+  {
+    "kpi": "categories",
+    "value": 1,
+    "unit": "categories",
+    "description": "User-defined resource categories observed."
+  },
+  {
+    "kpi": "successes",
+    "value": 4,
+    "unit": "runs",
+    "description": "Runs marked success."
+  },
+  {
+    "kpi": "errors",
+    "value": 0,
+    "unit": "runs",
+    "description": "Runs marked error or failure."
+  },
+  {
+    "kpi": "success_rate",
+    "value": 1.0,
+    "unit": "ratio",
+    "description": "Successful runs divided by all observed runs."
+  },
+  {
+    "kpi": "error_rate",
+    "value": 0.0,
+    "unit": "ratio",
+    "description": "Errored runs divided by all observed runs."
+  },
+  {
+    "kpi": "median_duration_ms",
+    "value": null,
+    "unit": "ms",
+    "description": "Median duration across runs with duration data."
+  },
+  {
+    "kpi": "tokens_total_estimate",
+    "value": 0,
+    "unit": "tokens",
+    "description": "Estimated input plus output tokens."
+  },
+  {
+    "kpi": "tokens_per_run_estimate",
+    "value": 0.0,
+    "unit": "tokens/run",
+    "description": "Estimated tokens divided by observed runs."
+  },
+  {
+    "kpi": "cost_estimate_usd",
+    "value": 0,
+    "unit": "USD",
+    "description": "Estimated total model/tool cost when supplied by harnesses."
+  },
+  {
+    "kpi": "cost_per_run_estimate_usd",
+    "value": 0.0,
+    "unit": "USD/run",
+    "description": "Estimated cost divided by observed runs."
+  }
+]

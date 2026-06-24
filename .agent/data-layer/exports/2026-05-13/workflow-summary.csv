@@ -1,0 +1,2 @@
+workflow,agent_events,cron_runs,successes,errors,success_rate,tokens_total_estimate,cost_estimate_usd
+claude_code,4,0,4,0,1.0,0,0

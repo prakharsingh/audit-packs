@@ -1,0 +1,11 @@
+[
+  {
+    "category": "uncategorized",
+    "agent_events": 4,
+    "cron_runs": 0,
+    "duration_ms": 0,
+    "tokens_total_estimate": 0,
+    "cost_estimate_usd": 0,
+    "hours": 0.0
+  }
+]

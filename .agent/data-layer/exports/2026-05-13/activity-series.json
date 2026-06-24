@@ -1,0 +1,12 @@
+[
+  {
+    "bucket_start": "2026-04-20T00:00:00Z",
+    "agent_events": 4,
+    "cron_runs": 0,
+    "tokens_in_estimate": 0,
+    "tokens_out_estimate": 0,
+    "tokens_total_estimate": 0,
+    "cost_estimate_usd": 0,
+    "active_agents": 4
+  }
+]
