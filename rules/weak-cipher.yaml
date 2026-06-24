@@ -1,0 +1,10 @@
+rules:
+  - id: weak-cipher
+    languages: [python]
+    severity: ERROR
+    message: Weak/broken cipher (DES/RC4/MD5) used; violates cryptographic protection control.
+    patterns:
+      - pattern-either:
+          - pattern: hashlib.md5(...)
+          - pattern: Crypto.Cipher.DES.new(...)
+          - pattern: Crypto.Cipher.ARC4.new(...)
