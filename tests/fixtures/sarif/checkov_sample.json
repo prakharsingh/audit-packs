@@ -1,0 +1,20 @@
+{
+  "runs": [
+    {
+      "tool": {"driver": {"name": "checkov", "rules": []}},
+      "results": [
+        {
+          "ruleId": "CKV_AWS_19",
+          "level": "error",
+          "message": {"text": "Ensure S3 bucket has encryption enabled"},
+          "locations": [
+            {"physicalLocation": {
+              "artifactLocation": {"uri": "main.tf"},
+              "region": {"startLine": 11}
+            }}
+          ]
+        }
+      ]
+    }
+  ]
+}
