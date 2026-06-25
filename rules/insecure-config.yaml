@@ -1,0 +1,33 @@
+rules:
+  - id: ssl-verify-disabled
+    patterns:
+      - pattern-either:
+          - pattern: requests.$FUNC(..., verify=False, ...)
+          - pattern: requests.$FUNC(..., verify=False)
+    message: >
+      TLS certificate verification is disabled (verify=False). This allows
+      man-in-the-middle attacks (NIST SC-8, GDPR Art-32-b).
+    languages: [python]
+    severity: ERROR
+    metadata:
+      confidence: HIGH
+      category: security
+      cwe: CWE-295
+      compliance:
+        - NIST SC-8
+        - GDPR Art-32-b
+
+  - id: tls-enabled-false
+    pattern: tls_enabled = False
+    message: >
+      TLS is explicitly disabled. All data in transit must be encrypted
+      (NIST SC-8, PCI-DSS Req-4).
+    languages: [python]
+    severity: ERROR
+    metadata:
+      confidence: HIGH
+      category: security
+      cwe: CWE-319
+      compliance:
+        - NIST SC-8
+        - PCI-DSS Req-4
