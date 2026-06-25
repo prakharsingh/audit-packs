@@ -273,6 +273,7 @@ def assess(
     precision_data=None,
     weights=None,
     threshold=0.70,
+    codeql_sarif_dir="",
 ):
     """Run engines over the full workspace and return ControlStatus objects.
 
@@ -322,18 +323,24 @@ def assess(
         checkov_sarif = run_checkov(repo_dir)
         semgrep_sarif = run_semgrep(repo_dir, rules_path)
 
+    codeql_sarif = (
+        read_codeql_sarif(codeql_sarif_dir) if codeql_sarif_dir else {"runs": []}
+    )
+    rule_confidences: dict[str, float] = {}
+    rule_confidences.update(extract_rule_confidences(codeql_sarif))
+
     # Load and run Phase 2 detection agents over the full workspace
     from audit_packs.agents import build_agents
 
     agents = build_agents(frameworks, packs_dir)
     all_file_texts = _read_all_files(repo_dir)
 
-    rule_confidences: dict[str, float] = {}
     rule_confidences.update(extract_rule_confidences(semgrep_sarif))
 
     findings = []
     findings += sarif_to_findings(checkov_sarif, "checkov")
     findings += sarif_to_findings(semgrep_sarif, "semgrep")
+    findings += sarif_to_findings(codeql_sarif, "codeql")
 
     for agent in agents:
         agent_sarif = agent.detect(all_file_texts)
@@ -367,14 +374,16 @@ def assess(
         data_flows[rel_path] = extract_data_flows(file_text, lang)
 
     # Enrich findings
-    ev_conf_map: dict[int, float] = {}
+    ev_conf_map: dict[tuple, float] = {}
     enriched_findings = []
     for f in findings:
         rel_path = _rel(f.file, repo_dir)
         file_text = changed_file_texts.get(rel_path, "")
         doc_ctx = extract_doc_context(file_text, f.line) if file_text else ""
         enriched = replace(f, doc_context=doc_ctx)
-        ev_conf_map[id(enriched)] = evidence_confidence(enriched, None)
+        ev_conf_map[(f.check_id, rel_path, f.line)] = evidence_confidence(
+            enriched, None
+        )
         enriched_findings.append(enriched)
 
     all_rel = [replace(f, file=_rel(f.file, repo_dir)) for f in enriched_findings]
@@ -392,7 +401,7 @@ def assess(
         rel_path = finding.file
         flows = data_flows.get(rel_path, [])
         f_conf = flow_confidence(flows, finding.line)
-        ev_conf = ev_conf_map.get(id(finding), 0.4)
+        ev_conf = ev_conf_map.get((finding.check_id, finding.file, finding.line), 0.4)
         rule_conf = rule_confidences.get(finding.check_id, 0.6)
         hist_prec = get_historical_precision(
             finding.check_id, cf.framework, precision_data
@@ -594,6 +603,7 @@ def main() -> int:
             precision_data=precision_data,
             weights=weights,
             threshold=threshold,
+            codeql_sarif_dir=codeql_sarif_dir,
         )
         if emit_oscal:
             oscal_path = os.path.join(workspace, "oscal.json")
