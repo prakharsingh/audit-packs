@@ -7,7 +7,11 @@ requires-python = ">=3.11"
 dependencies = ["PyYAML>=6.0", "requests>=2.31"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+dev = [
+    "pytest>=8.0",
+    "pre-commit>=3.5.0",
+    "python-semantic-release>=9.0.0"
+]
 
 [project.scripts]
 audit-packs = "audit_packs.cli:main"
@@ -19,3 +23,20 @@ testpaths = ["tests"]
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
+
+[tool.semantic_release]
+version_variables = ["src/audit_packs/__init__.py:__version__"]
+version_toml = ["pyproject.toml:project.version"]
+commit_parser = "conventional"
+allow_zero_version = true
+build_command = "pip install build && python -m build"
+upload_to_pypi = false
+
+[tool.semantic_release.changelog]
+changelog_file = "CHANGELOG.md"
+exclude_commit_patterns = []
+
+[tool.semantic_release.branches.main]
+match = "(main|master)"
+prerelease_token = "rc"
+prerelease = false

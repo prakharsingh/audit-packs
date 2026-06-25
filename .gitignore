@@ -7,3 +7,6 @@ dist/
 build/
 *.egg-info/
 .gemini/
+.audit-cache/
+.idea/
+node_modules/
