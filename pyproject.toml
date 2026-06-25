@@ -34,6 +34,11 @@ dev = [
     "pre-commit>=3.5.0",
     "python-semantic-release>=9.0.0"
 ]
+ai = [
+    "openai>=1.0",
+    "anthropic>=0.20",
+    "google-generativeai>=0.5",
+]
 
 [project.scripts]
 audit-packs = "audit_packs.cli:main"

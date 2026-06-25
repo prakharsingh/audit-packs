@@ -147,7 +147,13 @@ def _call_role(role_cfg: dict, system_prompt: str, user_content: str) -> dict:
 
     def _execute():
         if provider in ("openai", "openai-compatible"):
-            import openai
+            try:
+                import openai
+            except ImportError:
+                raise ImportError(
+                    "openai package is required for ADJUDICATION_MODE=advisory|enforce "
+                    "with provider='openai'. Install with: pip install 'audit-packs[ai]'"
+                ) from None
 
             client = openai.OpenAI(
                 api_key=api_key or "dummy", base_url=base_url, timeout=_LLM_TIMEOUT
@@ -164,7 +170,13 @@ def _call_role(role_cfg: dict, system_prompt: str, user_content: str) -> dict:
             return json.loads(resp.choices[0].message.content)
 
         if provider == "ollama":
-            import openai
+            try:
+                import openai
+            except ImportError:
+                raise ImportError(
+                    "openai package is required for provider='ollama'. "
+                    "Install with: pip install 'audit-packs[ai]'"
+                ) from None
 
             client = openai.OpenAI(
                 api_key="ollama",
@@ -182,7 +194,13 @@ def _call_role(role_cfg: dict, system_prompt: str, user_content: str) -> dict:
             return json.loads(resp.choices[0].message.content)
 
         if provider == "anthropic":
-            import anthropic
+            try:
+                import anthropic
+            except ImportError:
+                raise ImportError(
+                    "anthropic package is required for ADJUDICATION_MODE=advisory|enforce "
+                    "with provider='anthropic'. Install with: pip install 'audit-packs[ai]'"
+                ) from None
 
             client = anthropic.Anthropic(api_key=api_key, timeout=_LLM_TIMEOUT)
             resp = client.messages.create(
@@ -194,7 +212,13 @@ def _call_role(role_cfg: dict, system_prompt: str, user_content: str) -> dict:
             return json.loads(resp.content[0].text)
 
         if provider == "google":
-            import google.generativeai as genai
+            try:
+                import google.generativeai as genai
+            except ImportError:
+                raise ImportError(
+                    "google-generativeai package is required for ADJUDICATION_MODE=advisory|enforce "
+                    "with provider='google'. Install with: pip install 'audit-packs[ai]'"
+                ) from None
 
             genai.configure(api_key=api_key)
             gm = genai.GenerativeModel(

@@ -5,6 +5,8 @@ COPY pyproject.toml ./
 COPY src ./src
 COPY packs ./packs
 COPY rules ./rules
-RUN pip install --no-cache-dir . checkov semgrep
+ARG INSTALL_AI=false
+RUN pip install --no-cache-dir . checkov semgrep \
+    && if [ "$INSTALL_AI" = "true" ]; then pip install --no-cache-dir ".[ai]"; fi
 ENV PACKS_DIR=/app/packs RULES_PATH=/app/rules
 ENTRYPOINT ["python", "-m", "audit_packs.cli"]
