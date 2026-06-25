@@ -2,7 +2,7 @@
   "schema_version": 1,
   "agentic_stack_version": "0.9.0",
   "abs_target": "/Users/prakhar/fiddles/agentic-stack",
-  "installed_at": "2026-06-24T11:18:34Z",
+  "installed_at": "2026-06-25T10:46:00Z",
   "adapters": {
     "claude-code": {
       "installed_at": "2026-06-24T11:18:34Z",
@@ -65,6 +65,25 @@
         }
       ],
       "post_install_results": []
+    },
+    "codex": {
+      "installed_at": "2026-06-25T10:46:00Z",
+      "files_written": [],
+      "files_overwritten": [],
+      "files_alerted": [],
+      "file_results": [
+        {
+          "dst": "AGENTS.md",
+          "result": "left_alone"
+        }
+      ],
+      "post_install_results": [],
+      "skills_link": {
+        "target": ".agent/skills",
+        "dst": ".agents/skills",
+        "fallback": "rsync_with_delete"
+      },
+      "skills_link_pre_existed": false
     }
   }
 }

@@ -1,5 +1,6 @@
 ---
 name: design-md
+description: Applies a project DESIGN.md file as the portable source of truth for visual system and design-token work.
 version: 2026-04-26
 triggers: ["DESIGN.md", "design.md", "Google Stitch", "Stitch", "design tokens", "design system", "visual design"]
 tools: [bash, memory_reflect]

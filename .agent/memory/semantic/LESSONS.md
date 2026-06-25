@@ -13,6 +13,10 @@
 
 ## Auto-promoted entries will be appended below
 
+### 2026-06
+
+- Do not define duplicate YAML keys (e.g. metavariable-regex, pattern, pattern-not) as siblings in Semgrep rules; wrap multiple constraints/checks in a 'patterns:' block.  <!-- status=accepted confidence=0.6 evidence=1 id=lesson_bd6036c67c7f -->
+
 ### 2026-05
 
 - OpenCode v1.14.48 project-level opencode.json does not accept a top-level 'permissions' key — schema validation rejects it  <!-- status=accepted confidence=0.6 evidence=1 id=lesson_7d477c017118 -->

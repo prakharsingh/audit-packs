@@ -1,5 +1,8 @@
 """Archive old low-salience entries instead of deleting. Git history keeps everything."""
-import os, json, datetime
+
+import os
+import json
+import datetime
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "harness"))
@@ -10,7 +13,9 @@ SALIENCE_FLOOR = 2.0
 
 
 def decay_old_entries(entries, archive_dir):
-    cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=DECAY_DAYS)
+    cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
+        days=DECAY_DAYS
+    )
     kept, archived = [], []
     for e in entries:
         ts_str = e.get("timestamp", "")

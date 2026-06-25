@@ -1,6 +1,5 @@
 # Working Workspace
 
 ## Current Task
-- **Goal:** Read AGENTS.md, CLAUDE.md, gemini.md, and execute the audit-packs MVP plan from docs/superpowers/plans/2026-06-24-audit-packs-mvp.md.
-- **First Step:** Read AGENTS.md, CLAUDE.md, and gemini.md in the project root to understand instructions and context.
-- **Status:** Initialized.
+- **Goal:** Add SEO support.
+- **Status:** Complete. `coverage.html` now renders as an SEO-ready document with configurable title, description, canonical URL, social metadata, JSON-LD, summary counts, and escaped control data. Added `html-fragment` output for embeddable table use and covered behavior with tests.

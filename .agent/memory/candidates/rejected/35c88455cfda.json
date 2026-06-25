@@ -1,0 +1,69 @@
+{
+  "id": "35c88455cfda",
+  "key": "pattern_compliance-frameworks-design_superpowers_insertions_35c884",
+  "name": "pattern_compliance-frameworks-design_superpowers_insertions_35c884",
+  "claim": "High-stakes op completed (schema): git add docs/superpowers/specs/2026-06-25-compliance-frameworks-design.md && git commit -m \"$(cat <<",
+  "conditions": [
+    "add",
+    "bash",
+    "cat",
+    "changed",
+    "cmd",
+    "commit",
+    "compliance-frameworks-design",
+    "docs",
+    "eof",
+    "file",
+    "git",
+    "insertions",
+    "main",
+    "ndocs",
+    "out",
+    "specs",
+    "superpowers"
+  ],
+  "evidence_ids": [
+    "2026-06-24T20:47:13.064952+00:00",
+    "2026-06-24T20:48:01.763482+00:00",
+    "2026-06-24T20:50:10.565471+00:00",
+    "2026-06-24T20:54:37.920797+00:00",
+    "2026-06-24T20:56:28.440273+00:00",
+    "2026-06-24T20:58:04.056448+00:00",
+    "2026-06-24T21:01:33.303269+00:00",
+    "2026-06-24T21:04:03.735296+00:00"
+  ],
+  "cluster_size": 8,
+  "canonical_salience": 13.5,
+  "staged_at": "2026-06-24T21:01:45.227492+00:00",
+  "status": "rejected",
+  "decisions": [
+    {
+      "ts": "2026-06-24T21:01:45.227492+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T21:04:12.556644+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-25T07:52:24.266446+00:00",
+      "action": "rejected",
+      "reviewer": "host-agent",
+      "notes": "Specific execution artifact or command failure, not a generalizable coding lesson",
+      "evidence_snapshot": [
+        "2026-06-24T20:47:13.064952+00:00",
+        "2026-06-24T20:48:01.763482+00:00",
+        "2026-06-24T20:50:10.565471+00:00",
+        "2026-06-24T20:54:37.920797+00:00",
+        "2026-06-24T20:56:28.440273+00:00",
+        "2026-06-24T20:58:04.056448+00:00",
+        "2026-06-24T21:01:33.303269+00:00",
+        "2026-06-24T21:04:03.735296+00:00"
+      ],
+      "lessons_sha": "68f299e733fe"
+    }
+  ],
+  "rejection_count": 1
+}

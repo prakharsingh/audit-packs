@@ -1,5 +1,6 @@
 ---
 name: brain
+description: Integrates with the external Brain CLI and MCP server for durable cross-harness memory.
 version: 2026-05-10
 triggers: ["brain", "long-term memory", "shared memory", "cross-agent memory", "mcp memory", "remember across tools", "git-backed memory"]
 tools: [bash]

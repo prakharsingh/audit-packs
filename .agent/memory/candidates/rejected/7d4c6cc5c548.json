@@ -1,0 +1,90 @@
+{
+  "id": "7d4c6cc5c548",
+  "key": "pattern_audit-packs_file_path_projects_7d4c6c",
+  "name": "pattern_audit-packs_file_path_projects_7d4c6c",
+  "claim": "Wrote /Volumes/DevSSD/projects/audit-packs/CLAUDE.md (119 lines)",
+  "conditions": [
+    "audit-packs",
+    "content",
+    "devssd",
+    "file_path",
+    "lines",
+    "projects",
+    "volumes",
+    "write",
+    "wrote"
+  ],
+  "evidence_ids": [
+    "2026-06-24T11:32:47.899298+00:00",
+    "2026-06-24T12:32:06.407752+00:00",
+    "2026-06-24T12:40:01.595691+00:00",
+    "2026-06-24T16:27:17.131804+00:00",
+    "2026-06-24T20:47:01.721008+00:00"
+  ],
+  "cluster_size": 5,
+  "canonical_salience": 13.5,
+  "staged_at": "2026-06-24T20:48:07.011124+00:00",
+  "status": "rejected",
+  "decisions": [
+    {
+      "ts": "2026-06-24T20:48:07.011124+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T20:50:18.102441+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T20:51:57.012237+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T20:54:47.204420+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T20:56:35.843026+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T20:58:13.225052+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T21:01:45.227361+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T21:04:12.556097+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T21:18:39.214283+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-25T07:52:24.318420+00:00",
+      "action": "rejected",
+      "reviewer": "host-agent",
+      "notes": "Specific execution artifact or command failure, not a generalizable coding lesson",
+      "evidence_snapshot": [
+        "2026-06-24T11:32:47.899298+00:00",
+        "2026-06-24T12:32:06.407752+00:00",
+        "2026-06-24T12:40:01.595691+00:00",
+        "2026-06-24T16:27:17.131804+00:00",
+        "2026-06-24T20:47:01.721008+00:00"
+      ],
+      "lessons_sha": "68f299e733fe"
+    }
+  ],
+  "rejection_count": 1
+}

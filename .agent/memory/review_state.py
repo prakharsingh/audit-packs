@@ -9,7 +9,11 @@ into this module to transition state. Rejection and re-stage preserve full
 history so a candidate that keeps reappearing is visibly churning rather
 than looking novel each time.
 """
-import os, json, datetime, hashlib
+
+import os
+import json
+import datetime
+import hashlib
 
 
 def _now():
@@ -18,13 +22,15 @@ def _now():
 
 def _touch(candidate, action, reviewer, notes="", **fields):
     decisions = candidate.setdefault("decisions", [])
-    decisions.append({
-        "ts": _now(),
-        "action": action,
-        "reviewer": reviewer,
-        "notes": notes,
-        **fields,
-    })
+    decisions.append(
+        {
+            "ts": _now(),
+            "action": action,
+            "reviewer": reviewer,
+            "notes": notes,
+            **fields,
+        }
+    )
 
 
 def _lessons_sha(candidates_dir):
@@ -34,7 +40,8 @@ def _lessons_sha(candidates_dir):
     decision' apart from 'nothing has changed, skip to avoid churn'.
     """
     lessons_path = os.path.join(
-        os.path.dirname(candidates_dir), "semantic", "LESSONS.md")
+        os.path.dirname(candidates_dir), "semantic", "LESSONS.md"
+    )
     if not os.path.exists(lessons_path):
         return ""
     try:
@@ -96,8 +103,9 @@ def _refresh_queue(candidates_dir):
         pass
 
 
-def mark_graduated(candidate_id, reviewer, rationale, candidates_dir,
-                   provisional=False):
+def mark_graduated(
+    candidate_id, reviewer, rationale, candidates_dir, provisional=False
+):
     """Move a staged candidate to candidates/graduated/ with an accept decision.
 
     Returns the graduated candidate dict. Caller is responsible for writing
@@ -112,8 +120,7 @@ def mark_graduated(candidate_id, reviewer, rationale, candidates_dir,
     cand["accepted_at"] = _now()
     cand["reviewer"] = reviewer
     cand["rationale"] = rationale
-    _touch(cand, "graduated", reviewer, notes=rationale,
-           provisional=provisional)
+    _touch(cand, "graduated", reviewer, notes=rationale, provisional=provisional)
     _stamp_evidence_and_lessons(cand, candidates_dir)
 
     graduated_dir = os.path.join(candidates_dir, "graduated")
@@ -190,9 +197,9 @@ def candidate_priority(candidate):
     higher-salience patterns deserve attention ahead of one-offs.
     """
     return (
-        max(1, candidate.get("cluster_size", 1)) *
-        max(0.1, candidate.get("canonical_salience", 0.1)) *
-        _age_factor(candidate.get("staged_at", ""))
+        max(1, candidate.get("cluster_size", 1))
+        * max(0.1, candidate.get("canonical_salience", 0.1))
+        * _age_factor(candidate.get("staged_at", ""))
     )
 
 
@@ -247,8 +254,8 @@ def write_review_queue_summary(candidates_dir, summary_path):
         lines.append(f"**Oldest staged:** {oldest}")
     lines.append("")
     lines.append("Run `python .agent/tools/list_candidates.py` for detail, then:")
-    lines.append("- `python .agent/tools/graduate.py <id> --rationale \"...\"` to accept")
-    lines.append("- `python .agent/tools/reject.py <id> --reason \"...\"` to reject")
+    lines.append('- `python .agent/tools/graduate.py <id> --rationale "..."` to accept')
+    lines.append('- `python .agent/tools/reject.py <id> --reason "..."` to reject')
     lines.append("- Review in a batch so cross-candidate contradictions are caught.")
     lines.append("")
     lines.append("## Priority order (top 10)")

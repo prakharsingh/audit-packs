@@ -1,5 +1,6 @@
 ---
 name: deploy-checklist
+description: Runs pre-deployment checks and approval gates before shipping releases or deploying environments.
 version: 2026-01-01
 triggers: ["deploy", "ship", "release", "go live"]
 tools: [bash]

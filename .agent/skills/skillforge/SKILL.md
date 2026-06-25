@@ -1,5 +1,6 @@
 ---
 name: skillforge
+description: Creates and registers project skills with complete metadata, scoped instructions, and self-rewrite hooks.
 version: 2026-01-01
 triggers: ["create skill", "new skill", "build skill", "new capability"]
 tools: [bash, memory_reflect, git]
@@ -14,7 +15,7 @@ When a new capability is needed:
    extend it instead of creating a new one.
 2. **Check memory.** Read `memory/semantic/LESSONS.md` for related patterns.
 3. **Draft the skill.** Create `skills/<name>/SKILL.md` with:
-   - YAML frontmatter (name, version, triggers, tools, preconditions, constraints)
+   - YAML frontmatter (name, description, version, triggers, tools, preconditions, constraints)
    - Plain-language instructions (destinations and fences, not driving directions)
    - A self-rewrite hook at the bottom
 4. **Register it.** Add an entry to `skills/_index.md` and append a JSON line

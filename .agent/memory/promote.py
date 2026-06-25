@@ -8,9 +8,12 @@ Every staged candidate carries lifecycle metadata (status, decisions,
 rejection_count) from birth so repeated churn is visible rather than looking
 fresh each time the pattern recurs.
 """
-import os, json, datetime, hashlib
+
+import os
+import json
+import datetime
+import hashlib
 from cluster import content_cluster, extract_pattern
-from review_state import _lessons_sha
 from validate import extract_lesson_lines, check_exact_duplicate
 
 
@@ -74,7 +77,8 @@ def write_candidates(patterns, candidates_dir):
     # Read LESSONS.md once — used to check whether specific duplicates that
     # blocked a prior heuristic rejection are still present.
     lessons_path = os.path.join(
-        os.path.dirname(candidates_dir), "semantic", "LESSONS.md")
+        os.path.dirname(candidates_dir), "semantic", "LESSONS.md"
+    )
     lessons_text = ""
     if os.path.exists(lessons_path):
         try:
@@ -129,7 +133,8 @@ def write_candidates(patterns, candidates_dir):
             stamped_dups = last.get("duplicate_claims") or []
             if stamped_dups:
                 blocker_still_present = any(
-                    d in current_terminal_lessons for d in stamped_dups)
+                    d in current_terminal_lessons for d in stamped_dups
+                )
             else:
                 # No specific stamp (older rejection or human reject).
                 # Provisional and human-rejected cases gate on evidence alone.

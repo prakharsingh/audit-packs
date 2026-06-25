@@ -1,5 +1,6 @@
 ---
 name: data-layer
+description: Exports local cross-harness agent activity, usage, and monitoring dashboards for the portable brain.
 version: 2026-04-26
 triggers: ["data layer", "dashboard", "show me the dashboard", "what did my agents do", "agent analytics", "agent status", "resource usage", "usage report", "cron monitoring", "daily report", "tokens", "terminal dashboard", "TUI"]
 tools: [bash, git]

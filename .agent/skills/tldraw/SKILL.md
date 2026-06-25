@@ -1,5 +1,6 @@
 ---
 name: tldraw
+description: Draws diagrams, wireframes, and visual layouts on a live tldraw canvas through the MCP server.
 version: 2026-04-21
 triggers: ["draw", "diagram", "sketch", "wireframe", "flowchart", "mind-map", "mind map", "visualize", "lay out", "architecture diagram", "whiteboard"]
 tools: [mcp.tldraw.create_shape, mcp.tldraw.update_shape, mcp.tldraw.delete_shape, mcp.tldraw.get_canvas]

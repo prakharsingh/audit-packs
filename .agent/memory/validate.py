@@ -5,7 +5,10 @@ CLI tools in .agent/tools/ (graduate.py, reject.py). This module catches
 obvious junk — too-short claims, exact duplicates — before the reviewer
 sees the candidate at all. Anything subjective is the host's job.
 """
-import os, re, sys
+
+import os
+import re
+import sys
 
 # Make harness/text.py importable for content-word counting. Codex review
 # caught that raw char-length gates let `!!!!!!!!!!!!!!!!!abc` pass — a
@@ -66,8 +69,7 @@ def check_exact_duplicate(claim, existing_lessons_md):
     nc = _normalize(claim)
     if not nc:
         return []
-    return [l for l in extract_lesson_lines(existing_lessons_md)
-            if _normalize(l) == nc]
+    return [l for l in extract_lesson_lines(existing_lessons_md) if _normalize(l) == nc]
 
 
 def heuristic_check(candidate, existing_lessons_md=""):
@@ -93,7 +95,8 @@ def heuristic_check(candidate, existing_lessons_md=""):
     content_words = word_set(claim)
     if len(content_words) < MIN_CONTENT_WORDS:
         reasons.append(
-            f"insufficient_content_words_{len(content_words)}_of_{MIN_CONTENT_WORDS}")
+            f"insufficient_content_words_{len(content_words)}_of_{MIN_CONTENT_WORDS}"
+        )
 
     if claim:
         duplicates = check_exact_duplicate(claim, existing_lessons_md)

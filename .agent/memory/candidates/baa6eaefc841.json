@@ -1,0 +1,55 @@
+{
+  "id": "baa6eaefc841",
+  "key": "pattern_audit-models_audit-packs_file_path_baa6ea",
+  "name": "pattern_audit-models_audit-packs_file_path_baa6ea",
+  "claim": "Wrote /Volumes/DevSSD/projects/audit-packs/examples/audit-models/openai-only.yaml (27 lines)",
+  "conditions": [
+    "all",
+    "audit-models",
+    "audit-packs",
+    "content",
+    "devssd",
+    "examples",
+    "file_path",
+    "lines",
+    "projects",
+    "roles",
+    "routed",
+    "volumes",
+    "write",
+    "wrote",
+    "yaml"
+  ],
+  "evidence_ids": [
+    "2026-06-25T09:06:13.777812+00:00",
+    "2026-06-25T09:06:18.726059+00:00",
+    "2026-06-25T09:06:24.081209+00:00"
+  ],
+  "cluster_size": 3,
+  "canonical_salience": 13.5,
+  "staged_at": "2026-06-25T09:07:31.972751+00:00",
+  "status": "staged",
+  "decisions": [
+    {
+      "ts": "2026-06-25T09:07:31.972751+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-25T09:12:13.048181+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-25T09:56:05.484331+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-25T09:59:37.711801+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    }
+  ],
+  "rejection_count": 0
+}

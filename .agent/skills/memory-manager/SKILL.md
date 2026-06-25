@@ -1,5 +1,6 @@
 ---
 name: memory-manager
+description: Manages reflection, memory consolidation, and safe promotion of durable lessons from agent work.
 version: 2026-01-01
 triggers: ["reflect", "remember", "distill", "what did I learn", "update memory", "compress memory"]
 tools: [memory_reflect, bash, git]

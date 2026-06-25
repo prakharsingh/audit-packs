@@ -18,7 +18,12 @@ is rewritten atomically (temp file + rename) so readers never see a
 half-written file. Windows (no fcntl) falls through without locking; safe
 for single-user, noted in a one-time warning.
 """
-import os, json, datetime, hashlib, warnings
+
+import os
+import json
+import datetime
+import hashlib
+import warnings
 from collections import defaultdict
 from contextlib import contextmanager
 
@@ -31,6 +36,7 @@ SENTINEL = "## Auto-promoted entries will be appended below"
 
 try:
     import fcntl
+
     _HAS_FLOCK = True
 except ImportError:
     _HAS_FLOCK = False
@@ -190,18 +196,20 @@ def migrate_legacy_bullets(semantic_dir):
             continue
         # Strip provisional prefix if present
         if text.startswith("[PROVISIONAL]"):
-            text = text[len("[PROVISIONAL]"):].strip()
+            text = text[len("[PROVISIONAL]") :].strip()
         if text:
             bullets.append(text)
 
     if not bullets:
         return 0
 
-    existing_claims = {(L.get("claim") or "").strip().lower()
-                       for L in load_lessons(semantic_dir)}
+    existing_claims = {
+        (L.get("claim") or "").strip().lower() for L in load_lessons(semantic_dir)
+    }
     try:
         accepted_at = datetime.datetime.fromtimestamp(
-            os.path.getmtime(md_path), tz=datetime.timezone.utc).isoformat()
+            os.path.getmtime(md_path), tz=datetime.timezone.utc
+        ).isoformat()
     except OSError:
         accepted_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
@@ -211,14 +219,21 @@ def migrate_legacy_bullets(semantic_dir):
             continue
         lid = "lesson_legacy_" + hashlib.md5(claim.lower().encode()).hexdigest()[:12]
         lesson = {
-            "id": lid, "claim": claim,
-            "conditions": [], "evidence_ids": [],
-            "status": "legacy", "accepted_at": accepted_at,
+            "id": lid,
+            "claim": claim,
+            "conditions": [],
+            "evidence_ids": [],
+            "status": "legacy",
+            "accepted_at": accepted_at,
             "reviewer": "render_lessons_migration",
             "rationale": "Imported from pre-restructure LESSONS.md bullets below sentinel",
-            "cluster_size": 1, "canonical_salience": 5.0,
-            "confidence": 0.7, "support_count": 0, "contradiction_count": 0,
-            "supersedes": None, "source_candidate": None,
+            "cluster_size": 1,
+            "canonical_salience": 5.0,
+            "confidence": 0.7,
+            "support_count": 0,
+            "contradiction_count": 0,
+            "supersedes": None,
+            "source_candidate": None,
         }
         append_lesson(lesson, semantic_dir)
         existing_claims.add(claim.strip().lower())
@@ -311,7 +326,11 @@ def render_lessons_as_text(semantic_dir):
 
 if __name__ == "__main__":
     import sys
-    sem = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "semantic")
+
+    sem = (
+        sys.argv[1]
+        if len(sys.argv) > 1
+        else os.path.join(os.path.dirname(os.path.abspath(__file__)), "semantic")
+    )
     path = render_lessons(sem)
     print(f"rendered: {path}")

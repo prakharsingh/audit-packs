@@ -1,0 +1,224 @@
+{
+  "id": "402fd3ccc4f1",
+  "key": "pattern_prakharsingh_audit-packs_github_402fd3",
+  "name": "pattern_prakharsingh_audit-packs_github_402fd3",
+  "claim": "High-stakes op completed (schema): EPIC_URL=\"https://github.com/prakharsingh/audit-packs/issues/1\"",
+  "conditions": [
+    "audit-packs",
+    "bash",
+    "cmd",
+    "com",
+    "github",
+    "https",
+    "issues",
+    "out",
+    "prakharsingh"
+  ],
+  "evidence_ids": [
+    "2026-06-24T11:28:40.536796+00:00",
+    "2026-06-24T11:28:58.006893+00:00",
+    "2026-06-24T11:29:17.503484+00:00",
+    "2026-06-24T11:29:41.760106+00:00",
+    "2026-06-24T11:30:02.487918+00:00",
+    "2026-06-24T11:30:21.084711+00:00",
+    "2026-06-24T11:30:53.451567+00:00"
+  ],
+  "cluster_size": 7,
+  "canonical_salience": 13.5,
+  "staged_at": "2026-06-24T11:31:12.344935+00:00",
+  "status": "rejected",
+  "decisions": [
+    {
+      "ts": "2026-06-24T11:31:12.344935+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T11:32:57.324191+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T11:36:01.979337+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T11:37:22.112213+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T12:11:57.483544+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T12:25:26.546153+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T12:32:47.155620+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T12:43:31.256160+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T16:37:21.280861+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T18:51:37.387623+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T19:17:22.596374+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T19:19:46.659682+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T19:20:20.039440+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T19:22:43.055844+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T20:25:28.411348+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T20:32:07.547937+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T20:33:29.859367+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T20:34:43.777327+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T20:35:37.583075+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T20:36:34.473909+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T20:40:16.709700+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T20:40:48.583318+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T20:43:03.974066+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T20:44:10.851991+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T20:45:11.111564+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T20:48:07.010417+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T20:50:18.101016+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T20:51:57.011298+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T20:54:47.203518+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T20:56:35.842053+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T20:58:13.224134+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T21:01:45.226503+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T21:04:12.554716+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-24T21:18:39.212965+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-25T07:47:09.178798+00:00",
+      "action": "staged",
+      "reviewer": "auto_dream"
+    },
+    {
+      "ts": "2026-06-25T07:52:24.292627+00:00",
+      "action": "rejected",
+      "reviewer": "host-agent",
+      "notes": "Specific execution artifact or command failure, not a generalizable coding lesson",
+      "evidence_snapshot": [
+        "2026-06-24T11:28:40.536796+00:00",
+        "2026-06-24T11:28:58.006893+00:00",
+        "2026-06-24T11:29:17.503484+00:00",
+        "2026-06-24T11:29:41.760106+00:00",
+        "2026-06-24T11:30:02.487918+00:00",
+        "2026-06-24T11:30:21.084711+00:00",
+        "2026-06-24T11:30:53.451567+00:00"
+      ],
+      "lessons_sha": "68f299e733fe"
+    }
+  ],
+  "rejection_count": 1
+}

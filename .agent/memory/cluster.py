@@ -5,7 +5,11 @@ similarity is Jaccard on word_set, and extraction picks a canonical episode
 rather than synthesizing a new claim. Structured candidates flow through the
 Phase 1 validation gate — if no LLM is available, they defer as before.
 """
-import os, re, sys, hashlib
+
+import os
+import re
+import sys
+import hashlib
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "harness"))
 from text import word_set, jaccard
@@ -63,11 +67,13 @@ def pattern_id(claim, conditions):
     signature of "under what circumstances does this claim hold," and
     different contexts deserve different lifecycle state.
     """
-    canonical = sorted({
-        _canonicalize_condition(c)
-        for c in (conditions or [])
-        if _canonicalize_condition(c)
-    })
+    canonical = sorted(
+        {
+            _canonicalize_condition(c)
+            for c in (conditions or [])
+            if _canonicalize_condition(c)
+        }
+    )
     conditions_key = "|".join(canonical)
     return hashlib.md5(
         (_normalize_claim(claim) + "||" + conditions_key).encode()
@@ -76,11 +82,13 @@ def pattern_id(claim, conditions):
 
 def _entry_features(entry):
     """Content feature set for clustering: action + reflection + detail."""
-    text = " ".join([
-        entry.get("action", ""),
-        entry.get("reflection", ""),
-        entry.get("detail", ""),
-    ])
+    text = " ".join(
+        [
+            entry.get("action", ""),
+            entry.get("reflection", ""),
+            entry.get("detail", ""),
+        ]
+    )
     return word_set(text)
 
 
@@ -104,7 +112,8 @@ def content_cluster(entries, threshold=0.3, min_size=2):
     for item in featured:
         e_i, fs_i = item
         matching_indices = [
-            i for i, c in enumerate(clusters)
+            i
+            for i, c in enumerate(clusters)
             if any(jaccard(fs_i, fs_j) >= threshold for _, fs_j in c)
         ]
         if not matching_indices:

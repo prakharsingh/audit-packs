@@ -20,6 +20,7 @@ Usage:
 The index is stored at .agent/memory/.index/memory.db and auto-rebuilds
 when any memory file changes, is renamed, or is deleted.
 """
+
 import json
 import re
 import shutil
@@ -146,8 +147,7 @@ def build_index() -> int:
             else:
                 continue
             rel_path = f.relative_to(MEMORY_DIR)
-            conn.execute("INSERT INTO memories VALUES (?, ?)",
-                         (str(rel_path), content))
+            conn.execute("INSERT INTO memories VALUES (?, ?)", (str(rel_path), content))
             indexed += 1
         except Exception:
             pass
@@ -230,8 +230,7 @@ def search_fallback(query: str):
     result = subprocess.run(cmd, capture_output=True, text=True)
     files = [f for f in result.stdout.strip().split("\n") if f]
     return [
-        (Path(f).relative_to(MEMORY_DIR), f"(match in {Path(f).name})")
-        for f in files
+        (Path(f).relative_to(MEMORY_DIR), f"(match in {Path(f).name})") for f in files
     ]
 
 
@@ -260,7 +259,9 @@ def cmd_status():
         print(f"Mode: FALLBACK ({tool})")
         print("Reason: SQLite FTS5 not available in this Python build.")
         if tool == "unavailable":
-            print("Also: neither rg nor grep on PATH — install ripgrep for best results.")
+            print(
+                "Also: neither rg nor grep on PATH — install ripgrep for best results."
+            )
         return
     if not INDEX_PATH.exists():
         print("Mode: FTS5 (index not built yet — auto-builds on first search)")
@@ -269,7 +270,7 @@ def cmd_status():
     count = conn.execute("SELECT COUNT(*) FROM memories").fetchone()[0]
     conn.close()
     size_kb = INDEX_PATH.stat().st_size // 1024
-    print(f"Mode: FTS5")
+    print("Mode: FTS5")
     print(f"Index: {count} files indexed ({size_kb} KB)")
     print(f"Location: {INDEX_PATH}")
     print(f"Fallback available: {fallback_tool()}")

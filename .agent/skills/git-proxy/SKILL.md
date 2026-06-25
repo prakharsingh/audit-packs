@@ -1,5 +1,6 @@
 ---
 name: git-proxy
+description: Guides safe git operations including commits, branches, rebases, pushes, and pull-request workflows.
 version: 2026-01-01
 triggers: ["commit", "push", "branch", "merge", "rebase", "pull request", "PR"]
 tools: [bash]

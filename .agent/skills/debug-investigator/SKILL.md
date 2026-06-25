@@ -1,5 +1,6 @@
 ---
 name: debug-investigator
+description: Systematic debugging workflow that reproduces failures, isolates causes, and verifies root-cause fixes.
 version: 2026-01-01
 triggers: ["debug", "why is this failing", "investigate", "stack trace", "bug"]
 tools: [bash, memory_reflect]
