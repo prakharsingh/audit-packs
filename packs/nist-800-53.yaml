@@ -1,12 +1,129 @@
 id: nist-800-53
 title: NIST SP 800-53 Rev 5
 controls:
+  # ── SC: System and Communications Protection ──────────────────────────────
+
+  - id: SC-5
+    title: Denial of Service Protection
+    checks:
+      - { engine: checkov, ids: [CKV_AWS_86, CKV_AWS_310] }
+
+  - id: SC-7
+    title: Boundary Protection
+    checks:
+      - { engine: checkov, ids: [CKV_AWS_24, CKV_AWS_25, CKV_AWS_88, CKV_AWS_130] }
+
+  - id: SC-8
+    title: Transmission Confidentiality and Integrity
+    checks:
+      - { engine: checkov, ids: [CKV_AWS_2, CKV_AWS_86, CKV_AWS_68] }
+      - { engine: semgrep, ids: [no-tls-verify] }
+
+  - id: SC-12
+    title: Cryptographic Key Establishment and Management
+    checks:
+      - { engine: checkov, ids: [CKV_AWS_7, CKV_AWS_145, CKV_AWS_211] }
+      - { engine: fedramp-agent, ids: [FEDRAMP-002] }
+
   - id: SC-13
     title: Cryptographic Protection
     checks:
       - { engine: checkov, ids: [CKV_AWS_19, CKV_AWS_5, CKV_AWS_145] }
       - { engine: semgrep, ids: [weak-cipher] }
+      - { engine: dataflow-agent, ids: [DFA-001] }
+      - { engine: fedramp-agent, ids: [FEDRAMP-001] }
+
+  - id: SC-28
+    title: Protection of Information at Rest
+    checks:
+      - { engine: checkov, ids: [CKV_AWS_17, CKV_AWS_27, CKV_AWS_77, CKV_AWS_84, CKV_AWS_189, CKV_AWS_211] }
+      - { engine: dataflow-agent, ids: [DFA-001] }
+      - { engine: gdpr-agent, ids: [GDPR-001] }
+      - { engine: hipaa-agent, ids: [HIPAA-001] }
+
+  # ── AC: Access Control ────────────────────────────────────────────────────
+
+  - id: AC-2
+    title: Account Management
+    checks:
+      - { engine: checkov, ids: [CKV_AWS_9, CKV_AWS_10, CKV_AWS_11, CKV_AWS_12, CKV_AWS_13, CKV_AWS_14] }
+
+  - id: AC-3
+    title: Access Enforcement
+    checks:
+      - { engine: checkov, ids: [CKV_AWS_53, CKV_AWS_54, CKV_AWS_55, CKV_AWS_56, CKV_AWS_62] }
+      - { engine: hipaa-agent, ids: [HIPAA-002] }
+
+  - id: AC-6
+    title: Least Privilege
+    checks:
+      - { engine: checkov, ids: [CKV_AWS_40, CKV_AWS_274] }
+      - { engine: semgrep, ids: [overpermissive-iam] }
+
+  - id: AC-17
+    title: Remote Access
+    checks:
+      - { engine: checkov, ids: [CKV_AWS_88, CKV_AWS_130, CKV_AWS_184] }
+
+  # ── IA: Identification and Authentication ─────────────────────────────────
+
+  - id: IA-2
+    title: Identification and Authentication (Organizational Users)
+    checks:
+      - { engine: checkov, ids: [CKV_AWS_9, CKV_AWS_10] }
+
+  - id: IA-5
+    title: Authenticator Management
+    checks:
+      - { engine: checkov, ids: [CKV_AWS_6] }
+      - { engine: semgrep, ids: [hardcoded-credential] }
+
+  # ── AU: Audit and Accountability ──────────────────────────────────────────
+
   - id: AU-2
     title: Audit Events
     checks:
-      - { engine: checkov, ids: [CKV_AWS_67] }
+      - { engine: checkov, ids: [CKV_AWS_67, CKV_AWS_35, CKV_AWS_1] }
+      - { engine: soc2-agent, ids: [SOC2-002] }
+
+  - id: AU-3
+    title: Content of Audit Records
+    checks:
+      - { engine: checkov, ids: [CKV_AWS_252] }
+      - { engine: semgrep, ids: [missing-audit-log] }
+      - { engine: gdpr-agent, ids: [GDPR-002] }
+      - { engine: soc2-agent, ids: [SOC2-001] }
+
+  - id: AU-9
+    title: Protection of Audit Information
+    checks:
+      - { engine: checkov, ids: [CKV_AWS_66] }
+
+  # ── CM: Configuration Management ─────────────────────────────────────────
+
+  - id: CM-2
+    title: Baseline Configuration
+    checks:
+      - { engine: checkov, ids: [CKV_AWS_8, CKV_AWS_79] }
+
+  - id: CM-6
+    title: Configuration Settings
+    checks:
+      - { engine: checkov, ids: [CKV_AWS_34, CKV_AWS_95, CKV_AWS_150] }
+
+  - id: CM-7
+    title: Least Functionality
+    checks:
+      - { engine: checkov, ids: [CKV_AWS_50, CKV_AWS_115, CKV_AWS_120] }
+
+  # ── SI: System and Information Integrity ──────────────────────────────────
+
+  - id: SI-2
+    title: Flaw Remediation
+    checks:
+      - { engine: checkov, ids: [CKV_AWS_130, CKV_AWS_161] }
+
+  - id: SI-3
+    title: Malware Protection
+    checks:
+      - { engine: checkov, ids: [CKV_AWS_149, CKV_AWS_32] }

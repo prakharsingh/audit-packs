@@ -1,0 +1,47 @@
+# Scheduled full-posture scan — runs nightly over the entire codebase.
+# Produces OSCAL assessment-results, a coverage matrix, and an aggregate SARIF.
+# Does NOT post inline PR comments (no pull_request trigger).
+name: Nightly Compliance Posture
+
+on:
+  schedule:
+    - cron: "0 2 * * *"   # 02:00 UTC every day
+  workflow_dispatch:       # allow manual trigger
+
+jobs:
+  posture:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: prakharsingh/audit-packs@v1
+        id: audit
+        with:
+          frameworks: |
+            nist-800-53
+            soc2
+            hipaa
+            iso27001
+          scan-mode: full    # full-posture only — no PR diff filtering
+          emit-oscal: true
+          emit-coverage: true
+          emit-sarif: true
+
+      - uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ steps.audit.outputs.sarif-path }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: posture-${{ github.run_number }}-${{ github.run_attempt }}
+          path: |
+            ${{ steps.audit.outputs.oscal-path }}
+            ${{ steps.audit.outputs.coverage-md-path }}
+            ${{ steps.audit.outputs.coverage-html-path }}
+          retention-days: 90

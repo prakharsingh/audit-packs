@@ -15,7 +15,10 @@ class PRContext:
 
 def fetch_pr_context(repo: str, pr_number: str, token: str) -> PRContext:
     """Fetch PR body and last 5 commit subjects from GitHub API. IO boundary."""
-    headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+    }
     base = f"https://api.github.com/repos/{repo}/pulls/{pr_number}"
 
     pr_resp = requests.get(base, headers=headers, timeout=15)
@@ -46,7 +49,7 @@ def extract_doc_context(file_text: str, line: int) -> str:
             return content[:300]
 
     # HCL / shell / YAML block comments (# or // prefix)
-    comment_pattern = re.compile(r'^\s*(?:#|//)\s*(.+)$')
+    comment_pattern = re.compile(r"^\s*(?:#|//)\s*(.+)$")
     for ln in window:
         m = comment_pattern.match(ln)
         if m:
@@ -73,9 +76,8 @@ def evidence_confidence(finding: Finding, pr_context: PRContext | None) -> float
     if finding.doc_context:
         score += 0.3
     if pr_context:
-        file_ref = (
-            finding.file in pr_context.pr_body
-            or any(finding.file in msg for msg in pr_context.commit_messages)
+        file_ref = finding.file in pr_context.pr_body or any(
+            finding.file in msg for msg in pr_context.commit_messages
         )
         if file_ref:
             score += 0.3

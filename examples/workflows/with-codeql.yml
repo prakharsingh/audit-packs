@@ -1,0 +1,40 @@
+# CodeQL integration — combines SAST findings with IaC findings in one compliance view.
+# Run codeql-action/analyze with upload: false, then hand the SARIF directory to audit-packs.
+name: Compliance Audit — with CodeQL
+
+on:
+  pull_request:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: python,javascript
+
+      - uses: github/codeql-action/analyze@v3
+        with:
+          output: codeql-results   # write SARIF files into this directory
+          upload: false            # audit-packs handles the upload
+
+      - uses: prakharsingh/audit-packs@v1
+        id: audit
+        with:
+          frameworks: nist-800-53,soc2
+          fail-on: high
+          codeql-sarif: codeql-results
+
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: ${{ steps.audit.outputs.sarif-path }}

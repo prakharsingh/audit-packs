@@ -1,26 +1,64 @@
 """Tests for the rewritten 4-role adjudicate.py."""
-import os
+
 import json
-import tempfile
 import pytest
-from unittest.mock import MagicMock, patch, call
-from audit_packs.models import Finding, ControlFinding, AdjudicationMode, AdjudicationResult
+from unittest.mock import MagicMock, patch
+from audit_packs.models import (
+    Finding,
+    ControlFinding,
+    AdjudicationMode,
+    AdjudicationResult,
+)
 from audit_packs.evidence import PRContext
 from audit_packs.adjudicate import adjudicate, load_model_config, AdjudicationMode  # noqa
 
+
 def _cf():
-    f = Finding("CKV_AWS_19", "checkov", "main.tf", 5, "high", "S3 not encrypted", "encrypted=false")
+    f = Finding(
+        "CKV_AWS_19",
+        "checkov",
+        "main.tf",
+        5,
+        "high",
+        "S3 not encrypted",
+        "encrypted=false",
+    )
     return ControlFinding(f, "gdpr", "SC-28", "Protection of Information at Rest")
 
+
 def _pr():
-    return PRContext(pr_body="Fix S3 encryption", commit_messages=("fix: enable S3 encryption",))
+    return PRContext(
+        pr_body="Fix S3 encryption", commit_messages=("fix: enable S3 encryption",)
+    )
+
 
 _DEFAULT_CONFIG = {
-    "detector": {"provider": "openai", "model": "gpt-4o", "base_url": None, "api_key_env": "OPENAI_API_KEY"},
-    "verifier": {"provider": "anthropic", "model": "claude-opus-4-5", "base_url": None, "api_key_env": "ANTHROPIC_API_KEY"},
-    "adversarial": {"provider": "google", "model": "gemini-1.5-pro", "base_url": None, "api_key_env": "GOOGLE_API_KEY"},
-    "judge": {"provider": "openai", "model": "gpt-4o", "base_url": None, "api_key_env": "OPENAI_API_KEY"},
+    "detector": {
+        "provider": "openai",
+        "model": "gpt-4o",
+        "base_url": None,
+        "api_key_env": "OPENAI_API_KEY",
+    },
+    "verifier": {
+        "provider": "anthropic",
+        "model": "claude-opus-4-5",
+        "base_url": None,
+        "api_key_env": "ANTHROPIC_API_KEY",
+    },
+    "adversarial": {
+        "provider": "google",
+        "model": "gemini-1.5-pro",
+        "base_url": None,
+        "api_key_env": "GOOGLE_API_KEY",
+    },
+    "judge": {
+        "provider": "openai",
+        "model": "gpt-4o",
+        "base_url": None,
+        "api_key_env": "OPENAI_API_KEY",
+    },
 }
+
 
 class TestAdjudicateModeOff:
     @pytest.fixture(autouse=True)
@@ -37,6 +75,7 @@ class TestAdjudicateModeOff:
             adjudicate(_cf(), None, AdjudicationMode.OFF, _DEFAULT_CONFIG)
             mock.assert_not_called()
 
+
 class TestAdjudicatePipeline:
     @pytest.fixture(autouse=True)
     def disable_cache(self, monkeypatch):
@@ -50,6 +89,7 @@ class TestAdjudicatePipeline:
                 responses_list.append(role_responses[key])
 
         call_count = [0]
+
         def side_effect(role_cfg, system_prompt, user_content):
             idx = call_count[0]
             call_count[0] += 1
@@ -59,11 +99,15 @@ class TestAdjudicatePipeline:
 
     def test_sequential_pipeline_calls_four_roles(self, monkeypatch):
         calls = []
+
         def mock_call(role_cfg, system_prompt, user_content):
             if "compliance expert" in system_prompt:
                 calls.append("detector")
                 return {"confidence": 0.8, "assessment": "Likely violation"}
-            elif "prosecution" in system_prompt or "IS a genuine violation" in system_prompt:
+            elif (
+                "prosecution" in system_prompt
+                or "IS a genuine violation" in system_prompt
+            ):
                 calls.append("verifier")
                 return {"argument": "data stored plaintext", "strength": 0.9}
             elif "defence" in system_prompt or "FALSE POSITIVE" in system_prompt:
@@ -85,12 +129,15 @@ class TestAdjudicatePipeline:
         assert result.model_consensus == result.judge_score
 
     def test_detector_failure_returns_neutral(self, monkeypatch):
-        with patch("audit_packs.adjudicate._call_role", side_effect=Exception("API down")):
+        with patch(
+            "audit_packs.adjudicate._call_role", side_effect=Exception("API down")
+        ):
             result = adjudicate(_cf(), _pr(), AdjudicationMode.ENFORCE, _DEFAULT_CONFIG)
         assert result.model_consensus == 0.5
 
     def test_judge_failure_falls_back_to_detector_score(self, monkeypatch):
         call_count = [0]
+
         def mock_call(role_cfg, system_prompt, user_content):
             call_count[0] += 1
             if call_count[0] == 1:
@@ -102,6 +149,7 @@ class TestAdjudicatePipeline:
         with patch("audit_packs.adjudicate._call_role", side_effect=mock_call):
             result = adjudicate(_cf(), _pr(), AdjudicationMode.ENFORCE, _DEFAULT_CONFIG)
         assert result.model_consensus == pytest.approx(0.82)
+
 
 class TestLoadModelConfig:
     def test_returns_defaults_when_file_missing(self, tmp_path):
@@ -139,6 +187,7 @@ class TestLoadModelConfig:
         cfg = load_model_config(str(config_path))
         assert cfg["detector"]["model"] == "gpt-5-turbo"
 
+
 class TestCaching:
     def test_cache_hit_skips_llm_calls(self, tmp_path, monkeypatch):
         monkeypatch.setenv("AUDIT_CACHE", "on")
@@ -146,12 +195,16 @@ class TestCaching:
         cache_dir.mkdir()
 
         cached = {
-            "detector_score": 0.9, "verifier_argument": "v",
-            "adversarial_argument": "a", "judge_score": 0.9,
-            "model_consensus": 0.9, "rationale": "cached",
+            "detector_score": 0.9,
+            "verifier_argument": "v",
+            "adversarial_argument": "a",
+            "judge_score": 0.9,
+            "model_consensus": 0.9,
+            "rationale": "cached",
         }
         cf = _cf()
         import hashlib
+
         key = hashlib.sha256(
             f"{cf.finding.check_id}|{cf.framework}|{cf.finding.file}|{cf.control_id}".encode()
         ).hexdigest()
@@ -159,14 +212,16 @@ class TestCaching:
 
         with patch("audit_packs.adjudicate._CACHE_DIR", str(cache_dir)):
             with patch("audit_packs.adjudicate._call_role") as mock:
-                result = adjudicate(cf, _pr(), AdjudicationMode.ENFORCE, _DEFAULT_CONFIG)
+                result = adjudicate(
+                    cf, _pr(), AdjudicationMode.ENFORCE, _DEFAULT_CONFIG
+                )
                 mock.assert_not_called()
         assert result.model_consensus == pytest.approx(0.9)
 
+
 def test_call_role_google_handles_markdown_and_sets_mime_type(monkeypatch):
     import sys
-    from unittest.mock import MagicMock, patch
-    
+
     mock_genai = MagicMock()
     mock_google = MagicMock()
     mock_google.generativeai = mock_genai
@@ -183,7 +238,7 @@ def test_call_role_google_handles_markdown_and_sets_mime_type(monkeypatch):
 
     mock_resp = MagicMock()
     # Mock markdown wrapped JSON
-    mock_resp.text = "```json\n{\n  \"confidence\": 0.82\n}\n```"
+    mock_resp.text = '```json\n{\n  "confidence": 0.82\n}\n```'
 
     mock_model = MagicMock()
     mock_model.generate_content.return_value = mock_resp
@@ -191,12 +246,13 @@ def test_call_role_google_handles_markdown_and_sets_mime_type(monkeypatch):
 
     res = _call_role(role_cfg, "system prompt", "user content")
     assert res == {"confidence": 0.82}
-    
+
     mock_genai.GenerativeModel.assert_called_once_with(
         "gemini-1.5-pro",
         system_instruction="system prompt",
-        generation_config={"response_mime_type": "application/json"}
+        generation_config={"response_mime_type": "application/json"},
     )
+
 
 def test_adjudicate_verifier_adversarial_timeout_handling(monkeypatch):
     import time
@@ -222,7 +278,3 @@ def test_adjudicate_verifier_adversarial_timeout_handling(monkeypatch):
         # If timeout works, it should fallback to empty string arguments
         assert result.verifier_argument == ""
         assert result.adversarial_argument == ""
-
-
-
-

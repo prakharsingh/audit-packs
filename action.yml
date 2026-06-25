@@ -1,21 +1,121 @@
 name: "Audit Packs"
-description: "Map IaC findings to compliance controls and comment on PRs with evidence."
+description: >
+  Map IaC security findings to compliance framework controls
+  (SOC 2, NIST 800-53, GDPR, HIPAA, ISO 27001, PCI-DSS, FedRAMP, org-policy)
+  and post evidence-backed inline PR review comments with a severity gate.
+  Emits OSCAL assessment-results, a control coverage matrix, and an aggregate
+  SARIF file for GitHub code-scanning.
+
 inputs:
   frameworks:
-    description: "Comma-separated framework pack ids (e.g. nist-800-53,soc2)."
-    default: "nist-800-53"
+    description: |
+      Newline-separated (or comma-separated) list of framework IDs to assess.
+      Supported: GDPR, HIPAA, SOC2, ISO27001, PCI-DSS, NIST-800-53, FedRAMP, org-policy.
+    required: true
+
+  min-confidence:
+    description: "Composite score threshold (0.0–1.0). Findings below this are suppressed in enforce mode."
+    default: "0.70"
+
+  adjudication-mode:
+    description: "off (no LLM calls) | advisory (score shown, nothing suppressed) | enforce (suppress below threshold)"
+    default: "off"
+
+  models-config:
+    description: |
+      Path to a model routing YAML file (relative to repo root).
+      Defines provider, model, base_url, and api_key_env for each role.
+      Supports cloud APIs and local endpoints (Ollama, vLLM).
+      If omitted, uses audit-models.yaml at repo root if present,
+      otherwise falls back to built-in defaults (cloud models).
+    default: "audit-models.yaml"
+
+  detector-model:
+    description: "Override the detector role's model (sets DETECTOR_MODEL env)."
+    default: ""
+
+  verifier-model:
+    description: "Override the verifier role's model (sets VERIFIER_MODEL env)."
+    default: ""
+
+  adversarial-model:
+    description: "Override the adversarial role's model (sets ADVERSARIAL_MODEL env)."
+    default: ""
+
+  judge-model:
+    description: "Override the judge role's model (sets JUDGE_MODEL env)."
+    default: ""
+
+  codeql-sarif:
+    description: |
+      Path to directory of CodeQL SARIF files from github/codeql-action/analyze.
+      If absent or empty, CodeQL findings are skipped (graceful degradation).
+    default: ""
+
+  ast-rules:
+    description: "Path to Tree-sitter AST rule scripts directory (Phase 2 — reserved; ignored in Phase 1)."
+    default: "ast-rules"
+
   fail-on:
-    description: "Minimum severity that fails the check (low|medium|high|critical)."
+    description: "Minimum severity that blocks the PR: low | medium | high | critical"
     default: "high"
+
   base-ref:
-    description: "Base git ref to diff against."
+    description: "Git ref to diff against."
     default: "origin/main"
+
+  scan-mode:
+    description: "diff | full | both"
+    default: "both"
+
+  emit-oscal:
+    description: "Emit OSCAL assessment-results JSON"
+    default: "true"
+
+  emit-coverage:
+    description: "Emit coverage matrix as Markdown and HTML"
+    default: "true"
+
+  emit-sarif:
+    description: "Emit aggregate SARIF for upload"
+    default: "true"
+
+outputs:
+  oscal-path:
+    description: "Workspace-relative path to the OSCAL JSON output file."
+    value: "oscal.json"
+
+  coverage-md-path:
+    description: "Workspace-relative path to the Markdown coverage matrix."
+    value: "coverage.md"
+
+  coverage-html-path:
+    description: "Workspace-relative path to the HTML coverage matrix."
+    value: "coverage.html"
+
+  sarif-path:
+    description: "Workspace-relative path to the aggregate SARIF file."
+    value: "audit-packs.sarif"
+
 runs:
   using: "docker"
   image: "Dockerfile"
   env:
-    FRAMEWORKS: ${{ inputs.frameworks }}
-    FAIL_ON: ${{ inputs.fail-on }}
-    BASE_REF: ${{ inputs.base-ref }}
-    GITHUB_TOKEN: ${{ github.token }}
-    PR_NUMBER: ${{ github.event.pull_request.number }}
+    FRAMEWORKS:           ${{ inputs.frameworks }}
+    CONFIDENCE_THRESHOLD: ${{ inputs.min-confidence }}
+    ADJUDICATION_MODE:    ${{ inputs.adjudication-mode }}
+    AUDIT_MODELS_CONFIG:  ${{ inputs.models-config }}
+    DETECTOR_MODEL:       ${{ inputs.detector-model }}
+    VERIFIER_MODEL:       ${{ inputs.verifier-model }}
+    ADVERSARIAL_MODEL:    ${{ inputs.adversarial-model }}
+    JUDGE_MODEL:          ${{ inputs.judge-model }}
+    FAIL_ON:              ${{ inputs.fail-on }}
+    BASE_REF:             ${{ inputs.base-ref }}
+    SCAN_MODE:            ${{ inputs.scan-mode }}
+    EMIT_OSCAL:           ${{ inputs.emit-oscal }}
+    EMIT_COVERAGE:        ${{ inputs.emit-coverage }}
+    EMIT_SARIF:           ${{ inputs.emit-sarif }}
+    CODEQL_SARIF_DIR:     ${{ inputs.codeql-sarif }}
+    AST_RULES_DIR:        ${{ inputs.ast-rules }}
+    GITHUB_TOKEN:         ${{ github.token }}
+    PR_NUMBER:            ${{ github.event.pull_request.number }}

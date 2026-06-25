@@ -1,0 +1,29 @@
+# All roles routed to a local Ollama instance — zero external API calls.
+# Run Ollama before the workflow step:
+#   docker run -d -p 11434:11434 ollama/ollama
+#   ollama pull llama3.3
+# Requires: Ollama reachable at http://localhost:11434 from the runner.
+models:
+  detector:
+    provider: ollama
+    model: llama3.3
+    base_url: http://localhost:11434
+    api_key_env: null
+
+  verifier:
+    provider: ollama
+    model: llama3.3
+    base_url: http://localhost:11434
+    api_key_env: null
+
+  adversarial:
+    provider: ollama
+    model: llama3.3
+    base_url: http://localhost:11434
+    api_key_env: null
+
+  judge:
+    provider: ollama
+    model: llama3.3
+    base_url: http://localhost:11434
+    api_key_env: null

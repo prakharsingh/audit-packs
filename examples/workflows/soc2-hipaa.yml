@@ -1,0 +1,40 @@
+# SOC 2 + HIPAA — common configuration for SaaS companies handling health data.
+# Uploads OSCAL evidence and aggregate SARIF to GitHub Code Scanning.
+name: Compliance Audit — SOC 2 + HIPAA
+
+on:
+  pull_request:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      security-events: write   # required for SARIF upload
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: prakharsingh/audit-packs@v1
+        id: audit
+        with:
+          frameworks: |
+            soc2
+            hipaa
+          fail-on: high
+          scan-mode: both
+
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: ${{ steps.audit.outputs.sarif-path }}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: oscal-evidence
+          path: ${{ steps.audit.outputs.oscal-path }}
+          retention-days: 90

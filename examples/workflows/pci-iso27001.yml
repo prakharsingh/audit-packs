@@ -1,0 +1,43 @@
+# PCI-DSS v4.0 + ISO 27001:2022 — for fintech and payment-processing workloads.
+# Includes org-policy pack for custom internal controls layered on top.
+name: Compliance Audit — PCI-DSS + ISO 27001
+
+on:
+  pull_request:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: prakharsingh/audit-packs@v1
+        id: audit
+        with:
+          frameworks: |
+            pci-dss
+            iso27001
+            org-policy
+          fail-on: high
+          scan-mode: both
+
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: ${{ steps.audit.outputs.sarif-path }}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compliance-evidence-${{ github.run_number }}
+          path: |
+            ${{ steps.audit.outputs.oscal-path }}
+            ${{ steps.audit.outputs.coverage-html-path }}
+          retention-days: 365

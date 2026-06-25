@@ -1,0 +1,32 @@
+# AI adjudication enabled — four-role LLM ensemble scores each finding before the gate.
+# Uses enforce mode: findings below min-confidence (0.75) are suppressed.
+# Requires API key secrets for the providers configured in audit-models.yaml.
+# See examples/audit-models/ for model routing templates.
+name: Compliance Audit — with AI Adjudication
+
+on:
+  pull_request:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: prakharsingh/audit-packs@v1
+        with:
+          frameworks: nist-800-53,soc2
+          fail-on: high
+          adjudication-mode: enforce
+          min-confidence: "0.75"
+          models-config: examples/audit-models/mixed-cost-optimized.yaml
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}

@@ -8,32 +8,32 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **audit-packs** is an open-source GitHub Action that maps IaC security findings to compliance framework controls and posts evidence-backed inline PR review comments with a severity gate.
 
-Architecture: a Python orchestrator delegates detection to OSS engines (Checkov for IaC, Semgrep for authored rules), normalises SARIF output to a common `Finding` model, filters to PR-changed lines only, maps findings to compliance controls via YAML packs, and posts control-tagged PR review comments. The project differentiates on the **control-mapping + evidence UX**, not on building a new analysis engine.
+A Python orchestrator (`cli.py`) delegates detection to OSS engines (Checkov, Semgrep, optionally CodeQL) and framework-specific detection agents, normalises SARIF output to a common `Finding` model, enriches findings with evidence and data-flow context, optionally adjudicates them through an AI ensemble, confidence-gates low-quality findings, maps survivors to compliance controls via YAML packs, and posts control-tagged PR review comments. The project differentiates on **control-mapping + evidence UX + AI adjudication**, not on building new analysis engines.
 
-Implementation plan: `docs/superpowers/plans/2026-06-24-audit-packs-mvp.md` (8 TDD tasks; use that as the task guide).
-
-GitHub issues tracking the work: `prakharsingh/audit-packs` issues #1–9.
+Frameworks: NIST 800-53, SOC 2, GDPR, HIPAA, ISO 27001, PCI-DSS, FedRAMP, org-policy.
 
 ---
 
 ## Key design rules
 
-- **Never re-implement detection logic.** Engines (Checkov, Semgrep) are invoked as subprocesses; findings come back as SARIF.
-- **Packs are data, not code.** A framework pack = YAML mapping `(engine, check_id) → control`. NIST 800-53 is the canonical pack; other frameworks (SOC 2, etc.) are crosswalk packs that reference it.
-- **Diff-filtered only.** Only findings on lines added/changed in the PR are reported.
-- **SARIF is the lingua franca.** All engines emit SARIF; `normalize.py` converts it to the internal `Finding` dataclass before anything else touches the output.
+- **Never re-implement detection logic.** Engines (Checkov, Semgrep, CodeQL) are invoked as subprocesses; findings come back as SARIF.
+- **Packs are data, not code.** A framework pack = YAML mapping `(engine, check_id) → control`. NIST 800-53 is the canonical pack; all other frameworks are crosswalk packs that reference it via `crosswalk: nist-800-53` and `maps_to:` entries.
+- **Diff-filtered only (diff path).** Only findings on lines added/changed in the PR are reported in inline comments and the severity gate.
+- **SARIF is the lingua franca.** All engines and agents emit SARIF; `normalize.py` converts it to `Finding` dataclasses before anything else touches the output.
+- **Detection agents also emit SARIF.** `agents.py` framework agents (`GDPRAgent`, `HIPAAAgent`, etc.) implement the same `DetectionAgent.detect() → SARIF dict` contract.
 - Severity vocabulary is exactly: `low`, `medium`, `high`, `critical`.
 - License: Apache-2.0. No paid-tier engine features (Semgrep Pro, Bearer Pro) may be required.
+- Network/subprocess IO is confined to four modules: `engines.py` (subprocesses + `git diff`), `evidence.py` (GitHub PR context API), `adjudicate.py` (LLM provider APIs), and `report.py` (GitHub review API). Everything else — `normalize`, `diff`, `packs`, `dataflow`, `confidence`, `coverage`, `oscal` — is pure Python, testable without network or installed tools.
 
 ---
 
 ## Development commands
 
 ```bash
-# Install (once source exists)
+# Install in editable mode (venv already at .venv; engines on .venv/bin PATH)
 pip install -e ".[dev]"
 
-# Run all tests
+# Run all tests (pythonpath=["src"] is set in pyproject.toml — no install required)
 pytest -v
 
 # Run a single test file
@@ -45,34 +45,94 @@ pytest tests/test_packs.py::test_map_findings_crosswalk_soc2 -v
 # Build the Docker action image
 docker build -t audit-packs:dev .
 
-# Quick smoke-check engines are on PATH
+# Run the Docker smoke test
+pytest tests/test_docker_smoke.py -v
+# or directly: ./tests/docker_smoke.sh
+
+# Smoke-check engines (available in .venv/bin)
 checkov --version
 semgrep --version
 ```
 
 ---
 
-## Code structure (when implemented)
+## Code structure
 
 ```
 src/audit_packs/
-  models.py      # Finding + ControlFinding frozen dataclasses; severity_rank()
+  models.py      # Finding, ControlFinding, ControlStatus, AdjudicationResult (frozen dataclasses);
+                 # AssessmentStatus / AdjudicationMode enums; SEVERITIES, severity_rank()
   diff.py        # parse_unified_diff() → {file: set[line]}
-  normalize.py   # sarif_to_findings() — SARIF dict → list[Finding]
-  engines.py     # run_checkov() / run_semgrep() — subprocess → SARIF dict
-  packs.py       # load_pack(), map_findings() — control mapping + crosswalk
-  report.py      # build_comments(), gate_failed(), post_review() — GitHub IO
-  cli.py         # analyze() + main() — orchestration entry point
+  normalize.py   # sarif_to_findings(); extract_rule_confidences()
+  engines.py     # BaseEngine → CheckovEngine / SemgrepEngine / CodeQLEngine (async run_scan_async,
+                 # sync fallback); run_checkov / run_semgrep / run_git_diff / read_codeql_sarif
+  agents.py      # DetectionAgent ABC + per-framework agents (GDPRAgent, HIPAAAgent, SOC2Agent,
+                 # FedRAMPAgent, OrgPolicyAgent, DataFlowAgent); build_agents() → list[DetectionAgent]
+  packs.py       # load_pack(), map_findings() — control mapping + NIST crosswalk resolution
+  evidence.py    # enrich(), fetch_pr_context() [GitHub IO], evidence_confidence(),
+                 # extract_doc_context()
+  dataflow.py    # extract_data_flows() (python/hcl/yaml), flow_confidence()
+  adjudicate.py  # AI ensemble (detector → verifier → adversarial → judge) [LLM HTTP IO];
+                 # load_model_config(); result caching in .audit-cache/
+  confidence.py  # ScoreComponents, score_finding(), apply_confidence_gate(), DEFAULT_WEIGHTS,
+                 # historical precision helpers (get/update)
+  coverage.py    # compute_coverage() → list[ControlStatus] (one per framework control)
+  oscal.py       # to_assessment_results() — NIST OSCAL assessment-results JSON
+  report.py      # build_comments(), build_summary_comment(), gate_failed(),
+                 # build_coverage_matrix(md/html), build_sarif(), post_review() [GitHub IO],
+                 # write_job_summary()
+  cli.py         # analyze() (diff path) + assess() (full path) + main() — env-driven orchestration
 
 packs/
-  nist-800-53.yaml   # canonical: (engine, check_id) → control
-  soc2.yaml          # crosswalk: soc2 control → nist-800-53 control ids
+  nist-800-53.yaml          # canonical: (engine, check_id) → control
+  soc2|gdpr|hipaa|iso27001|pci-dss|fedramp|org-policy.yaml   # crosswalk → nist-800-53
 
 rules/
-  weak-cipher.yaml   # authored Semgrep rule (hybrid proof: non-Checkov detection)
+  weak-cipher.yaml / no-tls-verify.yaml / pii-fields.yaml /
+  insecure-config.yaml / hardcoded-credential.yaml /
+  overpermissive-iam.yaml / missing-audit-log.yaml
+  # Authored Semgrep rules — extend detection beyond Checkov check IDs
 ```
 
-The IO boundary is strict: `engines.py` and `report.py` are the only modules that make subprocess or HTTP calls. Everything between them is pure Python logic testable without network or installed tools.
+---
+
+## How the pipeline runs
+
+`cli.main()` reads configuration from environment variables (mapped from `action.yml` inputs) and runs one or both scan paths controlled by `SCAN_MODE`:
+
+**diff path — `analyze()`**
+engines + agents → `sarif_to_findings` → `enrich` (evidence + doc_context) → `extract_data_flows` → diff-filter to PR-changed lines → `map_findings` (control mapping) → `adjudicate` (AI ensemble, if enabled) → `apply_confidence_gate` → `ScoredFinding[]` → `build_comments` + `post_review` + `gate_failed`. Returns exit code 1 if the severity gate trips.
+
+**full path — `assess()`**
+engines + agents over whole workspace → enrich → `map_findings` → (optional adjudication) → `compute_coverage` → `ControlStatus[]` → emits `oscal.json`, `coverage.md`/`.html`, `audit-packs.sarif`, and GitHub job summary.
+
+**Confidence model** (`confidence.py` `DEFAULT_WEIGHTS`): composite of six signals:
+
+| Signal | Weight |
+|--------|--------|
+| rule confidence (from SARIF) | 0.20 |
+| evidence confidence | 0.15 |
+| model consensus (AI ensemble) | 0.25 |
+| historical precision | 0.10 |
+| control severity | 0.10 |
+| data-flow confidence | 0.20 |
+
+`CONFIDENCE_THRESHOLD` (default 0.70) suppresses low-confidence findings when `ADJUDICATION_MODE=enforce`. Historical precision persists in `.audit-cache/precision.json`; `AUDIT_CONFIRM=check:framework,...` records confirmed true positives.
+
+**AI routing** (`audit-models.yaml`): maps each role (`detector` / `verifier` / `adversarial` / `judge`) to `provider / model / base_url / api_key_env`. Per-role overrides via `DETECTOR_MODEL`, `VERIFIER_MODEL`, `ADVERSARIAL_MODEL`, `JUDGE_MODEL` env vars. `ADJUDICATION_MODE=off` makes zero LLM calls.
+
+**Key env vars** (all have defaults; see `action.yml` for the full list):
+
+| Env | Purpose | Default |
+|-----|---------|---------|
+| `FRAMEWORKS` | comma/newline framework IDs | required |
+| `SCAN_MODE` | `diff` \| `full` \| `both` | `both` |
+| `FAIL_ON` | gate severity `low`…`critical` | `high` |
+| `ADJUDICATION_MODE` | `off` \| `advisory` \| `enforce` | `off` |
+| `CONFIDENCE_THRESHOLD` | composite score cutoff | `0.70` |
+| `AUDIT_MODELS_CONFIG` | model routing YAML path | `audit-models.yaml` |
+| `CODEQL_SARIF_DIR` | dir of CodeQL SARIF (optional) | `` |
+| `EMIT_OSCAL` / `EMIT_COVERAGE` / `EMIT_SARIF` | toggle full-path outputs | `true` |
 
 ---
 

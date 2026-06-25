@@ -153,6 +153,179 @@ When `emit-sarif: true`, findings across all engines are merged into a single SA
 
 NIST 800-53 is the canonical pack. Every other framework is a crosswalk pack: each control maps to one or more NIST controls, which resolve to engine check IDs. Adding a new framework never requires touching detection logic — you add a YAML pack.
 
+### Detailed Control Mapping Matrix
+
+Below is a detailed matrix of supported/automated controls across all frameworks, resolved to their underlying static engine rules (Checkov, Semgrep) and custom Phase 2 detection agents.
+
+<!-- MATRIX_START -->
+#### FedRAMP Moderate Baseline (`fedramp`)
+
+**Reference Ruleset / Standard:** [FedRAMP Moderate Baseline](https://www.fedramp.gov/)
+
+| Control ID | Control Title | Automation Status | Mapped Rules / Heuristics |
+| --- | --- | --- | --- |
+| SC-13 | Cryptographic Protection (FedRAMP Moderate) | ✅ **Automated** | `SC-13` (*checkov*: `CKV_AWS_19`, `CKV_AWS_5`, `CKV_AWS_145`; *semgrep*: [`weak-cipher`](rules/weak-cipher.yaml); *dataflow-agent*: `DFA-001`; *fedramp-agent*: `FEDRAMP-001`) |
+| SC-28 | Protection of Information at Rest (FedRAMP Moderate) | ✅ **Automated** | `SC-28` (*checkov*: `CKV_AWS_17`, `CKV_AWS_27`, `CKV_AWS_77`, `CKV_AWS_84`, `CKV_AWS_189`, `CKV_AWS_211`; *dataflow-agent*: `DFA-001`; *gdpr-agent*: `GDPR-001`; *hipaa-agent*: `HIPAA-001`) |
+| SC-8 | Transmission Confidentiality (FedRAMP Moderate) | ✅ **Automated** | `SC-8` (*checkov*: `CKV_AWS_2`, `CKV_AWS_86`, `CKV_AWS_68`; *semgrep*: [`no-tls-verify`](rules/no-tls-verify.yaml)) |
+| SC-7 | Boundary Protection (FedRAMP Moderate) | ✅ **Automated** | `SC-7` (*checkov*: `CKV_AWS_24`, `CKV_AWS_25`, `CKV_AWS_88`, `CKV_AWS_130`) |
+| AC-3 | Access Enforcement (FedRAMP Moderate) | ✅ **Automated** | `AC-3` (*checkov*: `CKV_AWS_53`, `CKV_AWS_54`, `CKV_AWS_55`, `CKV_AWS_56`, `CKV_AWS_62`; *hipaa-agent*: `HIPAA-002`) |
+| AC-6 | Least Privilege (FedRAMP Moderate) | ✅ **Automated** | `AC-6` (*checkov*: `CKV_AWS_40`, `CKV_AWS_274`; *semgrep*: [`overpermissive-iam`](rules/overpermissive-iam.yaml)) |
+| IA-5 | Authenticator Management (FedRAMP Moderate) | ✅ **Automated** | `IA-5` (*checkov*: `CKV_AWS_6`; *semgrep*: [`hardcoded-credential`](rules/hardcoded-credential.yaml)) |
+| AU-2 | Audit Events (FedRAMP Moderate) | ✅ **Automated** | `AU-2` (*checkov*: `CKV_AWS_67`, `CKV_AWS_35`, `CKV_AWS_1`; *soc2-agent*: `SOC2-002`) |
+
+
+#### EU General Data Protection Regulation (GDPR) (`gdpr`)
+
+**Reference Ruleset / Standard:** [GDPR Articles & Technical Controls](https://gdpr-info.eu/)
+
+| Control ID | Control Title | Automation Status | Mapped Rules / Heuristics |
+| --- | --- | --- | --- |
+| Art-25 | Data Protection by Design and by Default | ✅ **Automated** | `SC-13` (*checkov*: `CKV_AWS_19`, `CKV_AWS_5`, `CKV_AWS_145`; *semgrep*: [`weak-cipher`](rules/weak-cipher.yaml); *dataflow-agent*: `DFA-001`; *fedramp-agent*: `FEDRAMP-001`), `SC-28` (*checkov*: `CKV_AWS_17`, `CKV_AWS_27`, `CKV_AWS_77`, `CKV_AWS_84`, `CKV_AWS_189`, `CKV_AWS_211`; *dataflow-agent*: `DFA-001`; *gdpr-agent*: `GDPR-001`; *hipaa-agent*: `HIPAA-001`) |
+| Art-30 | Records of Processing Activities | ✅ **Automated** | `AU-2` (*checkov*: `CKV_AWS_67`, `CKV_AWS_35`, `CKV_AWS_1`; *soc2-agent*: `SOC2-002`) |
+| Art-32-a | Pseudonymisation and Encryption | ✅ **Automated** | `SC-13` (*checkov*: `CKV_AWS_19`, `CKV_AWS_5`, `CKV_AWS_145`; *semgrep*: [`weak-cipher`](rules/weak-cipher.yaml); *dataflow-agent*: `DFA-001`; *fedramp-agent*: `FEDRAMP-001`), `SC-28` (*checkov*: `CKV_AWS_17`, `CKV_AWS_27`, `CKV_AWS_77`, `CKV_AWS_84`, `CKV_AWS_189`, `CKV_AWS_211`; *dataflow-agent*: `DFA-001`; *gdpr-agent*: `GDPR-001`; *hipaa-agent*: `HIPAA-001`) |
+| Art-32-b | Confidentiality and Integrity of Processing | ✅ **Automated** | `SC-8` (*checkov*: `CKV_AWS_2`, `CKV_AWS_86`, `CKV_AWS_68`; *semgrep*: [`no-tls-verify`](rules/no-tls-verify.yaml)), `SC-7` (*checkov*: `CKV_AWS_24`, `CKV_AWS_25`, `CKV_AWS_88`, `CKV_AWS_130`) |
+| Art-32-d | Regular Testing and Evaluation | ✅ **Automated** | `AU-2` (*checkov*: `CKV_AWS_67`, `CKV_AWS_35`, `CKV_AWS_1`; *soc2-agent*: `SOC2-002`) |
+
+
+#### HIPAA Security Rule (45 CFR Part 164) (`hipaa`)
+
+**Reference Ruleset / Standard:** [HIPAA Security Rule Regulations](https://www.hhs.gov/hipaa/for-professionals/security/laws-regulations/index.html)
+
+| Control ID | Control Title | Automation Status | Mapped Rules / Heuristics |
+| --- | --- | --- | --- |
+| §164.312(a)(1) | Access Control Standard | ✅ **Automated** | `AC-3` (*checkov*: `CKV_AWS_53`, `CKV_AWS_54`, `CKV_AWS_55`, `CKV_AWS_56`, `CKV_AWS_62`; *hipaa-agent*: `HIPAA-002`), `AC-6` (*checkov*: `CKV_AWS_40`, `CKV_AWS_274`; *semgrep*: [`overpermissive-iam`](rules/overpermissive-iam.yaml)) |
+| §164.312(a)(2)(iv) | Encryption and Decryption | ✅ **Automated** | `SC-13` (*checkov*: `CKV_AWS_19`, `CKV_AWS_5`, `CKV_AWS_145`; *semgrep*: [`weak-cipher`](rules/weak-cipher.yaml); *dataflow-agent*: `DFA-001`; *fedramp-agent*: `FEDRAMP-001`), `SC-28` (*checkov*: `CKV_AWS_17`, `CKV_AWS_27`, `CKV_AWS_77`, `CKV_AWS_84`, `CKV_AWS_189`, `CKV_AWS_211`; *dataflow-agent*: `DFA-001`; *gdpr-agent*: `GDPR-001`; *hipaa-agent*: `HIPAA-001`) |
+| §164.312(b) | Audit Controls | ✅ **Automated** | `AU-2` (*checkov*: `CKV_AWS_67`, `CKV_AWS_35`, `CKV_AWS_1`; *soc2-agent*: `SOC2-002`) |
+| §164.312(d) | Person or Entity Authentication | ✅ **Automated** | `IA-5` (*checkov*: `CKV_AWS_6`; *semgrep*: [`hardcoded-credential`](rules/hardcoded-credential.yaml)) |
+| §164.312(e)(1) | Transmission Security Standard | ✅ **Automated** | `SC-8` (*checkov*: `CKV_AWS_2`, `CKV_AWS_86`, `CKV_AWS_68`; *semgrep*: [`no-tls-verify`](rules/no-tls-verify.yaml)) |
+| §164.312(e)(2)(ii) | Encryption of Data in Transit | ✅ **Automated** | `SC-8` (*checkov*: `CKV_AWS_2`, `CKV_AWS_86`, `CKV_AWS_68`; *semgrep*: [`no-tls-verify`](rules/no-tls-verify.yaml)), `SC-13` (*checkov*: `CKV_AWS_19`, `CKV_AWS_5`, `CKV_AWS_145`; *semgrep*: [`weak-cipher`](rules/weak-cipher.yaml); *dataflow-agent*: `DFA-001`; *fedramp-agent*: `FEDRAMP-001`) |
+
+
+#### ISO/IEC 27001:2022 (Information Security Management) (`iso27001`)
+
+**Reference Ruleset / Standard:** [ISO/IEC 27001:2022 Standards](https://www.iso.org/standard/27001)
+
+| Control ID | Control Title | Automation Status | Mapped Rules / Heuristics |
+| --- | --- | --- | --- |
+| A.9.4.1 | Information Access Restriction | ✅ **Automated** | `AC-3` (*checkov*: `CKV_AWS_53`, `CKV_AWS_54`, `CKV_AWS_55`, `CKV_AWS_56`, `CKV_AWS_62`; *hipaa-agent*: `HIPAA-002`), `AC-6` (*checkov*: `CKV_AWS_40`, `CKV_AWS_274`; *semgrep*: [`overpermissive-iam`](rules/overpermissive-iam.yaml)) |
+| A.10.1.1 | Policy on Use of Cryptographic Controls | ✅ **Automated** | `SC-13` (*checkov*: `CKV_AWS_19`, `CKV_AWS_5`, `CKV_AWS_145`; *semgrep*: [`weak-cipher`](rules/weak-cipher.yaml); *dataflow-agent*: `DFA-001`; *fedramp-agent*: `FEDRAMP-001`) |
+| A.10.1.2 | Key Management | ✅ **Automated** | `SC-13` (*checkov*: `CKV_AWS_19`, `CKV_AWS_5`, `CKV_AWS_145`; *semgrep*: [`weak-cipher`](rules/weak-cipher.yaml); *dataflow-agent*: `DFA-001`; *fedramp-agent*: `FEDRAMP-001`) |
+| A.12.4.1 | Event Logging | ✅ **Automated** | `AU-2` (*checkov*: `CKV_AWS_67`, `CKV_AWS_35`, `CKV_AWS_1`; *soc2-agent*: `SOC2-002`) |
+| A.12.4.3 | Administrator and Operator Logs | ✅ **Automated** | `AU-2` (*checkov*: `CKV_AWS_67`, `CKV_AWS_35`, `CKV_AWS_1`; *soc2-agent*: `SOC2-002`) |
+| A.13.1.1 | Network Controls | ✅ **Automated** | `SC-7` (*checkov*: `CKV_AWS_24`, `CKV_AWS_25`, `CKV_AWS_88`, `CKV_AWS_130`) |
+| A.13.1.3 | Segregation in Networks | ✅ **Automated** | `SC-7` (*checkov*: `CKV_AWS_24`, `CKV_AWS_25`, `CKV_AWS_88`, `CKV_AWS_130`) |
+| A.13.2.1 | Information Transfer Policies | ✅ **Automated** | `SC-8` (*checkov*: `CKV_AWS_2`, `CKV_AWS_86`, `CKV_AWS_68`; *semgrep*: [`no-tls-verify`](rules/no-tls-verify.yaml)) |
+| A.14.1.2 | Securing Application Services | ✅ **Automated** | `SC-8` (*checkov*: `CKV_AWS_2`, `CKV_AWS_86`, `CKV_AWS_68`; *semgrep*: [`no-tls-verify`](rules/no-tls-verify.yaml)), `SC-13` (*checkov*: `CKV_AWS_19`, `CKV_AWS_5`, `CKV_AWS_145`; *semgrep*: [`weak-cipher`](rules/weak-cipher.yaml); *dataflow-agent*: `DFA-001`; *fedramp-agent*: `FEDRAMP-001`) |
+| A.18.1.5 | Regulation of Cryptographic Controls | ✅ **Automated** | `SC-13` (*checkov*: `CKV_AWS_19`, `CKV_AWS_5`, `CKV_AWS_145`; *semgrep*: [`weak-cipher`](rules/weak-cipher.yaml); *dataflow-agent*: `DFA-001`; *fedramp-agent*: `FEDRAMP-001`), `SC-28` (*checkov*: `CKV_AWS_17`, `CKV_AWS_27`, `CKV_AWS_77`, `CKV_AWS_84`, `CKV_AWS_189`, `CKV_AWS_211`; *dataflow-agent*: `DFA-001`; *gdpr-agent*: `GDPR-001`; *hipaa-agent*: `HIPAA-001`) |
+
+
+#### NIST SP 800-53 Rev 5 (`nist-800-53`)
+
+**Reference Ruleset / Standard:** [NIST SP 800-53 Rev. 5 Controls Reference](https://csrc.nist.gov/projects/cprt/controls#/cprt/framework/SP80053R5)
+
+| Control ID | Control Title | Automation Status | Mapped Rules / Heuristics |
+| --- | --- | --- | --- |
+| SC-5 | Denial of Service Protection | ✅ **Automated** | *checkov*: `CKV_AWS_86`, `CKV_AWS_310` |
+| SC-7 | Boundary Protection | ✅ **Automated** | *checkov*: `CKV_AWS_24`, `CKV_AWS_25`, `CKV_AWS_88`, `CKV_AWS_130` |
+| SC-8 | Transmission Confidentiality and Integrity | ✅ **Automated** | *checkov*: `CKV_AWS_2`, `CKV_AWS_86`, `CKV_AWS_68`<br>*semgrep*: [`no-tls-verify`](rules/no-tls-verify.yaml) |
+| SC-12 | Cryptographic Key Establishment and Management | ✅ **Automated** | *checkov*: `CKV_AWS_7`, `CKV_AWS_145`, `CKV_AWS_211`<br>*fedramp-agent*: `FEDRAMP-002` |
+| SC-13 | Cryptographic Protection | ✅ **Automated** | *checkov*: `CKV_AWS_19`, `CKV_AWS_5`, `CKV_AWS_145`<br>*semgrep*: [`weak-cipher`](rules/weak-cipher.yaml)<br>*dataflow-agent*: `DFA-001`<br>*fedramp-agent*: `FEDRAMP-001` |
+| SC-28 | Protection of Information at Rest | ✅ **Automated** | *checkov*: `CKV_AWS_17`, `CKV_AWS_27`, `CKV_AWS_77`, `CKV_AWS_84`, `CKV_AWS_189`, `CKV_AWS_211`<br>*dataflow-agent*: `DFA-001`<br>*gdpr-agent*: `GDPR-001`<br>*hipaa-agent*: `HIPAA-001` |
+| AC-2 | Account Management | ✅ **Automated** | *checkov*: `CKV_AWS_9`, `CKV_AWS_10`, `CKV_AWS_11`, `CKV_AWS_12`, `CKV_AWS_13`, `CKV_AWS_14` |
+| AC-3 | Access Enforcement | ✅ **Automated** | *checkov*: `CKV_AWS_53`, `CKV_AWS_54`, `CKV_AWS_55`, `CKV_AWS_56`, `CKV_AWS_62`<br>*hipaa-agent*: `HIPAA-002` |
+| AC-6 | Least Privilege | ✅ **Automated** | *checkov*: `CKV_AWS_40`, `CKV_AWS_274`<br>*semgrep*: [`overpermissive-iam`](rules/overpermissive-iam.yaml) |
+| AC-17 | Remote Access | ✅ **Automated** | *checkov*: `CKV_AWS_88`, `CKV_AWS_130`, `CKV_AWS_184` |
+| IA-2 | Identification and Authentication (Organizational Users) | ✅ **Automated** | *checkov*: `CKV_AWS_9`, `CKV_AWS_10` |
+| IA-5 | Authenticator Management | ✅ **Automated** | *checkov*: `CKV_AWS_6`<br>*semgrep*: [`hardcoded-credential`](rules/hardcoded-credential.yaml) |
+| AU-2 | Audit Events | ✅ **Automated** | *checkov*: `CKV_AWS_67`, `CKV_AWS_35`, `CKV_AWS_1`<br>*soc2-agent*: `SOC2-002` |
+| AU-3 | Content of Audit Records | ✅ **Automated** | *checkov*: `CKV_AWS_252`<br>*semgrep*: [`missing-audit-log`](rules/missing-audit-log.yaml)<br>*gdpr-agent*: `GDPR-002`<br>*soc2-agent*: `SOC2-001` |
+| AU-9 | Protection of Audit Information | ✅ **Automated** | *checkov*: `CKV_AWS_66` |
+| CM-2 | Baseline Configuration | ✅ **Automated** | *checkov*: `CKV_AWS_8`, `CKV_AWS_79` |
+| CM-6 | Configuration Settings | ✅ **Automated** | *checkov*: `CKV_AWS_34`, `CKV_AWS_95`, `CKV_AWS_150` |
+| CM-7 | Least Functionality | ✅ **Automated** | *checkov*: `CKV_AWS_50`, `CKV_AWS_115`, `CKV_AWS_120` |
+| SI-2 | Flaw Remediation | ✅ **Automated** | *checkov*: `CKV_AWS_130`, `CKV_AWS_161` |
+| SI-3 | Malware Protection | ✅ **Automated** | *checkov*: `CKV_AWS_149`, `CKV_AWS_32` |
+
+
+#### Internal Organization Security Policy (`org-policy`)
+
+**Reference Ruleset / Standard:** Internal Acme Corp Security Policy
+
+| Control ID | Control Title | Automation Status | Mapped Rules / Heuristics |
+| --- | --- | --- | --- |
+| ORG-ENC-1 | All Data Must Be Encrypted at Rest | ✅ **Automated** | `SC-13` (*checkov*: `CKV_AWS_19`, `CKV_AWS_5`, `CKV_AWS_145`; *semgrep*: [`weak-cipher`](rules/weak-cipher.yaml); *dataflow-agent*: `DFA-001`; *fedramp-agent*: `FEDRAMP-001`), `SC-28` (*checkov*: `CKV_AWS_17`, `CKV_AWS_27`, `CKV_AWS_77`, `CKV_AWS_84`, `CKV_AWS_189`, `CKV_AWS_211`; *dataflow-agent*: `DFA-001`; *gdpr-agent*: `GDPR-001`; *hipaa-agent*: `HIPAA-001`) |
+| ORG-TLS-1 | All Transmissions Must Use TLS 1.2+ | ✅ **Automated** | `SC-8` (*checkov*: `CKV_AWS_2`, `CKV_AWS_86`, `CKV_AWS_68`; *semgrep*: [`no-tls-verify`](rules/no-tls-verify.yaml)), `SC-13` (*checkov*: `CKV_AWS_19`, `CKV_AWS_5`, `CKV_AWS_145`; *semgrep*: [`weak-cipher`](rules/weak-cipher.yaml); *dataflow-agent*: `DFA-001`; *fedramp-agent*: `FEDRAMP-001`) |
+| ORG-NET-1 | No Unrestricted Inbound Network Access | ✅ **Automated** | `SC-7` (*checkov*: `CKV_AWS_24`, `CKV_AWS_25`, `CKV_AWS_88`, `CKV_AWS_130`) |
+| ORG-ACC-1 | Enforce Least-Privilege Access Controls | ✅ **Automated** | `AC-3` (*checkov*: `CKV_AWS_53`, `CKV_AWS_54`, `CKV_AWS_55`, `CKV_AWS_56`, `CKV_AWS_62`; *hipaa-agent*: `HIPAA-002`), `AC-6` (*checkov*: `CKV_AWS_40`, `CKV_AWS_274`; *semgrep*: [`overpermissive-iam`](rules/overpermissive-iam.yaml)) |
+| ORG-IAM-1 | Rotate and Expire Credentials Regularly | ✅ **Automated** | `IA-5` (*checkov*: `CKV_AWS_6`; *semgrep*: [`hardcoded-credential`](rules/hardcoded-credential.yaml)) |
+| ORG-LOG-1 | Enable Audit Logging for All Services | ✅ **Automated** | `AU-2` (*checkov*: `CKV_AWS_67`, `CKV_AWS_35`, `CKV_AWS_1`; *soc2-agent*: `SOC2-002`) |
+
+
+#### PCI DSS v4.0 (Payment Card Industry Data Security Standard) (`pci-dss`)
+
+**Reference Ruleset / Standard:** [PCI DSS v4.0 Resource Center](https://www.pcisecuritystandards.org/)
+
+| Control ID | Control Title | Automation Status | Mapped Rules / Heuristics |
+| --- | --- | --- | --- |
+| Req-2.2 | System Security Configuration | ✅ **Automated** | `SC-7` (*checkov*: `CKV_AWS_24`, `CKV_AWS_25`, `CKV_AWS_88`, `CKV_AWS_130`), `AC-3` (*checkov*: `CKV_AWS_53`, `CKV_AWS_54`, `CKV_AWS_55`, `CKV_AWS_56`, `CKV_AWS_62`; *hipaa-agent*: `HIPAA-002`) |
+| Req-3.4 | Render PAN Unreadable Anywhere It Is Stored | ✅ **Automated** | `SC-13` (*checkov*: `CKV_AWS_19`, `CKV_AWS_5`, `CKV_AWS_145`; *semgrep*: [`weak-cipher`](rules/weak-cipher.yaml); *dataflow-agent*: `DFA-001`; *fedramp-agent*: `FEDRAMP-001`), `SC-28` (*checkov*: `CKV_AWS_17`, `CKV_AWS_27`, `CKV_AWS_77`, `CKV_AWS_84`, `CKV_AWS_189`, `CKV_AWS_211`; *dataflow-agent*: `DFA-001`; *gdpr-agent*: `GDPR-001`; *hipaa-agent*: `HIPAA-001`) |
+| Req-4.1 | Strong Cryptography for Data in Transit | ✅ **Automated** | `SC-8` (*checkov*: `CKV_AWS_2`, `CKV_AWS_86`, `CKV_AWS_68`; *semgrep*: [`no-tls-verify`](rules/no-tls-verify.yaml)), `SC-13` (*checkov*: `CKV_AWS_19`, `CKV_AWS_5`, `CKV_AWS_145`; *semgrep*: [`weak-cipher`](rules/weak-cipher.yaml); *dataflow-agent*: `DFA-001`; *fedramp-agent*: `FEDRAMP-001`) |
+| Req-7.1 | Limit Access to System Components | ✅ **Automated** | `AC-3` (*checkov*: `CKV_AWS_53`, `CKV_AWS_54`, `CKV_AWS_55`, `CKV_AWS_56`, `CKV_AWS_62`; *hipaa-agent*: `HIPAA-002`), `AC-6` (*checkov*: `CKV_AWS_40`, `CKV_AWS_274`; *semgrep*: [`overpermissive-iam`](rules/overpermissive-iam.yaml)) |
+| Req-8.2 | Proper Identification and Authentication | ✅ **Automated** | `IA-5` (*checkov*: `CKV_AWS_6`; *semgrep*: [`hardcoded-credential`](rules/hardcoded-credential.yaml)) |
+| Req-10.1 | Implement Audit Trails | ✅ **Automated** | `AU-2` (*checkov*: `CKV_AWS_67`, `CKV_AWS_35`, `CKV_AWS_1`; *soc2-agent*: `SOC2-002`) |
+| Req-10.3 | Protect Audit Trails from Destruction | ✅ **Automated** | `AU-2` (*checkov*: `CKV_AWS_67`, `CKV_AWS_35`, `CKV_AWS_1`; *soc2-agent*: `SOC2-002`) |
+| Req-6.4 | Address Common Security Vulnerabilities | ✅ **Automated** | `SC-7` (*checkov*: `CKV_AWS_24`, `CKV_AWS_25`, `CKV_AWS_88`, `CKV_AWS_130`), `SC-8` (*checkov*: `CKV_AWS_2`, `CKV_AWS_86`, `CKV_AWS_68`; *semgrep*: [`no-tls-verify`](rules/no-tls-verify.yaml)) |
+
+
+#### SOC 2 Type II (Trust Services Criteria — AICPA 2017) (`soc2`)
+
+**Reference Ruleset / Standard:** [AICPA SOC 2 Trust Services Criteria](https://www.aicpa-cima.com/resources/download/trust-services-criteria)
+
+| Control ID | Control Title | Automation Status | Mapped Rules / Heuristics |
+| --- | --- | --- | --- |
+| CC1.1 | COSO Principle 1 — Integrity and Ethical Values | ❌ **Manual** | *Governance control (requires manual evidence review)* |
+| CC1.2 | COSO Principle 2 — Board Independence and Oversight | ❌ **Manual** | *Governance control (requires manual evidence review)* |
+| CC1.3 | COSO Principle 3 — Organizational Structure | ❌ **Manual** | *Governance control (requires manual evidence review)* |
+| CC1.4 | COSO Principle 4 — Commitment to Competence | ❌ **Manual** | *Governance control (requires manual evidence review)* |
+| CC1.5 | COSO Principle 5 — Accountability | ❌ **Manual** | *Governance control (requires manual evidence review)* |
+| CC2.1 | COSO Principle 13 — Information Quality | ❌ **Manual** | *Governance control (requires manual evidence review)* |
+| CC2.2 | COSO Principle 14 — Internal Communication | ❌ **Manual** | *Governance control (requires manual evidence review)* |
+| CC2.3 | COSO Principle 15 — External Communication | ❌ **Manual** | *Governance control (requires manual evidence review)* |
+| CC3.1 | COSO Principle 6 — Specify Objectives | ❌ **Manual** | *Governance control (requires manual evidence review)* |
+| CC3.2 | COSO Principle 7 — Risk Identification | ❌ **Manual** | *Governance control (requires manual evidence review)* |
+| CC3.3 | COSO Principle 8 — Risk Analysis | ❌ **Manual** | *Governance control (requires manual evidence review)* |
+| CC3.4 | COSO Principle 9 — Risk Assessment | ❌ **Manual** | *Governance control (requires manual evidence review)* |
+| CC4.1 | COSO Principle 16 — Ongoing Monitoring | ❌ **Manual** | *Governance control (requires manual evidence review)* |
+| CC4.2 | COSO Principle 17 — Evaluation of Monitoring Results | ❌ **Manual** | *Governance control (requires manual evidence review)* |
+| CC5.1 | COSO Principle 10 — Select and Develop Controls | ❌ **Manual** | *Governance control (requires manual evidence review)* |
+| CC5.2 | COSO Principle 11 — Technology Controls | ❌ **Manual** | *Governance control (requires manual evidence review)* |
+| CC5.3 | COSO Principle 12 — Deploy Control Activities | ❌ **Manual** | *Governance control (requires manual evidence review)* |
+| CC6.1 | Logical Access — Encryption at Rest | ✅ **Automated** | `SC-13` (*checkov*: `CKV_AWS_19`, `CKV_AWS_5`, `CKV_AWS_145`; *semgrep*: [`weak-cipher`](rules/weak-cipher.yaml); *dataflow-agent*: `DFA-001`; *fedramp-agent*: `FEDRAMP-001`), `SC-28` (*checkov*: `CKV_AWS_17`, `CKV_AWS_27`, `CKV_AWS_77`, `CKV_AWS_84`, `CKV_AWS_189`, `CKV_AWS_211`; *dataflow-agent*: `DFA-001`; *gdpr-agent*: `GDPR-001`; *hipaa-agent*: `HIPAA-001`) |
+| CC6.2 | Logical Access — Account Provisioning and Management | ✅ **Automated** | `AC-2` (*checkov*: `CKV_AWS_9`, `CKV_AWS_10`, `CKV_AWS_11`, `CKV_AWS_12`, `CKV_AWS_13`, `CKV_AWS_14`) |
+| CC6.3 | Network Access — Boundary Protection | ✅ **Automated** | `SC-7` (*checkov*: `CKV_AWS_24`, `CKV_AWS_25`, `CKV_AWS_88`, `CKV_AWS_130`) |
+| CC6.4 | Logical Access — Authentication | ✅ **Automated** | `IA-2` (*checkov*: `CKV_AWS_9`, `CKV_AWS_10`), `IA-5` (*checkov*: `CKV_AWS_6`; *semgrep*: [`hardcoded-credential`](rules/hardcoded-credential.yaml)) |
+| CC6.5 | Logical Access — Credential Disposal | ✅ **Automated** | `IA-5` (*checkov*: `CKV_AWS_6`; *semgrep*: [`hardcoded-credential`](rules/hardcoded-credential.yaml)) |
+| CC6.6 | Transmission Security | ✅ **Automated** | `SC-8` (*checkov*: `CKV_AWS_2`, `CKV_AWS_86`, `CKV_AWS_68`; *semgrep*: [`no-tls-verify`](rules/no-tls-verify.yaml)), `SC-13` (*checkov*: `CKV_AWS_19`, `CKV_AWS_5`, `CKV_AWS_145`; *semgrep*: [`weak-cipher`](rules/weak-cipher.yaml); *dataflow-agent*: `DFA-001`; *fedramp-agent*: `FEDRAMP-001`) |
+| CC6.7 | Logical Access — Least Privilege | ✅ **Automated** | `AC-3` (*checkov*: `CKV_AWS_53`, `CKV_AWS_54`, `CKV_AWS_55`, `CKV_AWS_56`, `CKV_AWS_62`; *hipaa-agent*: `HIPAA-002`), `AC-6` (*checkov*: `CKV_AWS_40`, `CKV_AWS_274`; *semgrep*: [`overpermissive-iam`](rules/overpermissive-iam.yaml)) |
+| CC6.8 | Malware and Unauthorized Software Protection | ✅ **Automated** | `CM-7` (*checkov*: `CKV_AWS_50`, `CKV_AWS_115`, `CKV_AWS_120`), `SI-3` (*checkov*: `CKV_AWS_149`, `CKV_AWS_32`) |
+| CC7.1 | Configuration Baseline and Monitoring | ✅ **Automated** | `CM-2` (*checkov*: `CKV_AWS_8`, `CKV_AWS_79`), `CM-6` (*checkov*: `CKV_AWS_34`, `CKV_AWS_95`, `CKV_AWS_150`) |
+| CC7.2 | System Monitoring and Audit Logging | ✅ **Automated** | `AU-2` (*checkov*: `CKV_AWS_67`, `CKV_AWS_35`, `CKV_AWS_1`; *soc2-agent*: `SOC2-002`), `AU-3` (*checkov*: `CKV_AWS_252`; *semgrep*: [`missing-audit-log`](rules/missing-audit-log.yaml); *gdpr-agent*: `GDPR-002`; *soc2-agent*: `SOC2-001`) |
+| CC7.3 | Evaluation of Security Events | ✅ **Automated** | `AU-3` (*checkov*: `CKV_AWS_252`; *semgrep*: [`missing-audit-log`](rules/missing-audit-log.yaml); *gdpr-agent*: `GDPR-002`; *soc2-agent*: `SOC2-001`), `AU-9` (*checkov*: `CKV_AWS_66`) |
+| CC7.4 | Incident Response and Recovery | ✅ **Automated** | `SI-2` (*checkov*: `CKV_AWS_130`, `CKV_AWS_161`), `AU-3` (*checkov*: `CKV_AWS_252`; *semgrep*: [`missing-audit-log`](rules/missing-audit-log.yaml); *gdpr-agent*: `GDPR-002`; *soc2-agent*: `SOC2-001`) |
+| CC7.5 | Incident Response — Post-Incident Review | ❌ **Manual** | *Governance control (requires manual evidence review)* |
+| CC8.1 | Change Management — Authentication and Integrity | ✅ **Automated** | `IA-5` (*checkov*: `CKV_AWS_6`; *semgrep*: [`hardcoded-credential`](rules/hardcoded-credential.yaml)), `CM-2` (*checkov*: `CKV_AWS_8`, `CKV_AWS_79`) |
+| CC8.2 | Change Management — Approval and Segregation of Duties | ❌ **Manual** | *Governance control (requires manual evidence review)* |
+| CC9.1 | Risk Mitigation Strategy | ❌ **Manual** | *Governance control (requires manual evidence review)* |
+| CC9.2 | Vendor and Business Partner Risk | ❌ **Manual** | *Governance control (requires manual evidence review)* |
+| A1.1 | Availability — Denial of Service Protection | ✅ **Automated** | `SC-5` (*checkov*: `CKV_AWS_86`, `CKV_AWS_310`) |
+| A1.2 | Availability — Boundary and Environmental Controls | ✅ **Automated** | `SC-7` (*checkov*: `CKV_AWS_24`, `CKV_AWS_25`, `CKV_AWS_88`, `CKV_AWS_130`) |
+| A1.3 | Availability — Recovery and Backup Testing | ❌ **Manual** | *Governance control (requires manual evidence review)* |
+| C1.1 | Confidentiality — Encryption of Confidential Data | ✅ **Automated** | `SC-13` (*checkov*: `CKV_AWS_19`, `CKV_AWS_5`, `CKV_AWS_145`; *semgrep*: [`weak-cipher`](rules/weak-cipher.yaml); *dataflow-agent*: `DFA-001`; *fedramp-agent*: `FEDRAMP-001`), `SC-28` (*checkov*: `CKV_AWS_17`, `CKV_AWS_27`, `CKV_AWS_77`, `CKV_AWS_84`, `CKV_AWS_189`, `CKV_AWS_211`; *dataflow-agent*: `DFA-001`; *gdpr-agent*: `GDPR-001`; *hipaa-agent*: `HIPAA-001`) |
+| C1.2 | Confidentiality — Disposal of Confidential Data | ✅ **Automated** | `SC-28` (*checkov*: `CKV_AWS_17`, `CKV_AWS_27`, `CKV_AWS_77`, `CKV_AWS_84`, `CKV_AWS_189`, `CKV_AWS_211`; *dataflow-agent*: `DFA-001`; *gdpr-agent*: `GDPR-001`; *hipaa-agent*: `HIPAA-001`) |
+
+
+<!-- MATRIX_END -->
+
 ---
 
 ## Scan modes
@@ -412,19 +585,7 @@ rules/           # Authored Semgrep rules bundled with the action
 
 ## Contributing
 
-Issues and pull requests are welcome. Please open an issue before starting significant work so we can align on scope.
-
-**Adding a framework pack:**
-
-1. Create `packs/<framework-id>.yaml` with `crosswalk: nist-800-53` and a list of controls, each with a `maps_to:` list of NIST control IDs.
-2. Add corresponding detection coverage in the appropriate agent in `agents.py` if the framework requires heuristics beyond Checkov / Semgrep check IDs.
-3. Add a test in `tests/test_packs.py` covering the new crosswalk.
-
-**Adding a Semgrep rule:**
-
-1. Add the rule YAML to `rules/`.
-2. Map the new rule ID to the appropriate NIST control(s) in `packs/nist-800-53.yaml`.
-3. Add a fixture and test in `tests/test_rules.py`.
+Contributions are welcome! Please refer to [CONTRIBUTING.md](CONTRIBUTING.md) for local development setup, guidelines on adding framework packs or custom rules, and pull request requirements.
 
 ---
 

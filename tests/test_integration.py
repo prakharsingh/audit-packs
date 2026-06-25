@@ -1,10 +1,18 @@
 import pathlib
+import shutil
+import pytest
 from audit_packs.cli import analyze
 
 ROOT = pathlib.Path(__file__).parent.parent
 PACKS = str(ROOT / "packs")
 RULES = str(ROOT / "rules/weak-cipher.yaml")
 TF = str(ROOT / "tests/fixtures/terraform")
+
+pytestmark = pytest.mark.skipif(
+    shutil.which("checkov") is None,
+    reason="checkov not on PATH — skipping engine integration tests",
+)
+
 
 def test_analyze_maps_checkov_findings_to_controls_diff_filtered():
     # Pretend every line of insecure.tf changed in the PR.
@@ -14,6 +22,7 @@ def test_analyze_maps_checkov_findings_to_controls_diff_filtered():
     # Insecure S3 bucket should surface at least one mapped control.
     assert control_ids, "expected at least one control-mapped finding"
     assert all(cf.framework == "nist-800-53" for cf in cfs)
+
 
 def test_analyze_drops_findings_outside_diff():
     changed = {"insecure.tf": set()}  # nothing changed

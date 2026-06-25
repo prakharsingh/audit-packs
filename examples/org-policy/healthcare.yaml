@@ -1,0 +1,30 @@
+# Org-policy pack for a healthcare or health-tech company.
+# Pairs with frameworks: hipaa,soc2,org-policy
+# Copy to packs/org-policy.yaml and adjust to match your internal control library.
+id: org-policy
+title: HealthCo Security and HIPAA Compliance Policy v1
+crosswalk: nist-800-53
+
+controls:
+  # PHI encryption — HIPAA § 164.312(a)(2)(iv) and § 164.312(e)(2)(ii)
+  - { id: HC-ENC-1, title: All PHI data stores must be encrypted at rest (AES-256+),   maps_to: [SC-13, SC-28] }
+  - { id: HC-ENC-2, title: PHI must never be transmitted without TLS 1.2+,             maps_to: [SC-8, SC-13] }
+  - { id: HC-ENC-3, title: Encryption keys must have automatic annual rotation,         maps_to: [SC-12] }
+
+  # Access control — HIPAA § 164.312(a)(1)
+  - { id: HC-ACC-1, title: PHI systems must enforce least-privilege access,            maps_to: [AC-3, AC-6] }
+  - { id: HC-ACC-2, title: IAM roles for PHI access must not use wildcard actions,     maps_to: [AC-3, AC-6] }
+  - { id: HC-ACC-3, title: All workforce members must authenticate with MFA,           maps_to: [IA-2] }
+
+  # Audit controls — HIPAA § 164.312(b)
+  - { id: HC-AUD-1, title: All access to PHI systems must be logged,                  maps_to: [AU-2, AU-12] }
+  - { id: HC-AUD-2, title: Audit logs must be retained for a minimum of 6 years,      maps_to: [AU-11] }
+  - { id: HC-AUD-3, title: CloudTrail must be enabled with log file validation,        maps_to: [AU-2, AU-9] }
+
+  # Network controls — HIPAA § 164.312(e)(1)
+  - { id: HC-NET-1, title: PHI systems must not be publicly accessible,               maps_to: [SC-7] }
+  - { id: HC-NET-2, title: Security groups must block unrestricted inbound access,     maps_to: [SC-7] }
+
+  # PII / PHI detection
+  - { id: HC-PII-1, title: PII field names must not appear in plaintext config files, maps_to: [SC-28, MP-6] }
+  - { id: HC-SEC-1, title: No hardcoded credentials or PHI literals in source code,   maps_to: [IA-5] }

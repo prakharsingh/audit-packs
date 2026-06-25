@@ -1,0 +1,31 @@
+# Org-policy pack for a fintech or payment-processing company.
+# Pairs with frameworks: pci-dss,iso27001,org-policy
+# Copy to packs/org-policy.yaml and adjust to match your internal control library.
+id: org-policy
+title: FinCo Security and Compliance Policy v2
+crosswalk: nist-800-53
+
+controls:
+  # Encryption — PCI-DSS Req 3 / 4
+  - { id: FINCO-ENC-1, title: Cardholder data must be encrypted at rest (AES-256+),     maps_to: [SC-13, SC-28] }
+  - { id: FINCO-ENC-2, title: All payment channel traffic must use TLS 1.2+,            maps_to: [SC-8, SC-13] }
+  - { id: FINCO-ENC-3, title: KMS keys must have automatic rotation enabled,            maps_to: [SC-12] }
+
+  # Network segmentation — PCI-DSS Req 1
+  - { id: FINCO-NET-1, title: CDE must be isolated in a dedicated VPC/subnet,           maps_to: [SC-7] }
+  - { id: FINCO-NET-2, title: No inbound 0.0.0.0/0 to CDE security groups,             maps_to: [SC-7] }
+  - { id: FINCO-NET-3, title: VPC flow logs must be enabled for all VPCs,              maps_to: [SC-7, AU-2] }
+
+  # Access control — PCI-DSS Req 7 / 8
+  - { id: FINCO-IAM-1, title: IAM policies must not use wildcard actions on payment APIs, maps_to: [AC-3, AC-6] }
+  - { id: FINCO-IAM-2, title: Service accounts must rotate credentials every 90 days,   maps_to: [IA-5] }
+  - { id: FINCO-IAM-3, title: All privileged access must require MFA,                   maps_to: [IA-2] }
+
+  # Logging and monitoring — PCI-DSS Req 10
+  - { id: FINCO-LOG-1, title: CloudTrail logging must be enabled in all regions,        maps_to: [AU-2, AU-12] }
+  - { id: FINCO-LOG-2, title: CloudWatch alarms must exist for root account usage,      maps_to: [AU-6, IR-5] }
+  - { id: FINCO-LOG-3, title: RDS audit logging must be enabled,                        maps_to: [AU-2] }
+
+  # Vulnerability management — PCI-DSS Req 6
+  - { id: FINCO-VM-1,  title: No hardcoded credentials in IaC or application code,     maps_to: [IA-5] }
+  - { id: FINCO-VM-2,  title: TLS certificate verification must not be disabled,       maps_to: [SC-8] }

@@ -1,0 +1,26 @@
+# All four adjudication roles routed to OpenAI.
+# Requires: OPENAI_API_KEY secret.
+models:
+  detector:
+    provider: openai
+    model: gpt-4o
+    base_url: null
+    api_key_env: OPENAI_API_KEY
+
+  verifier:
+    provider: openai
+    model: gpt-4o
+    base_url: null
+    api_key_env: OPENAI_API_KEY
+
+  adversarial:
+    provider: openai
+    model: gpt-4o
+    base_url: null
+    api_key_env: OPENAI_API_KEY
+
+  judge:
+    provider: openai
+    model: gpt-4o
+    base_url: null
+    api_key_env: OPENAI_API_KEY

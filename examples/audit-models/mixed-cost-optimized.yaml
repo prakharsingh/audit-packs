@@ -1,0 +1,28 @@
+# Cost-optimized multi-provider routing.
+# Cheaper models handle high-volume detection and verification passes.
+# The judge role uses a stronger model since it makes the final call.
+# Requires: OPENAI_API_KEY, ANTHROPIC_API_KEY, GOOGLE_API_KEY secrets.
+models:
+  detector:
+    provider: openai
+    model: gpt-4o-mini        # fast, cheap — initial triage pass
+    base_url: null
+    api_key_env: OPENAI_API_KEY
+
+  verifier:
+    provider: anthropic
+    model: claude-haiku-4-5-20251001  # fast, cheap — argues for the finding
+    base_url: null
+    api_key_env: ANTHROPIC_API_KEY
+
+  adversarial:
+    provider: google
+    model: gemini-1.5-flash   # fast, cheap — argues against the finding
+    base_url: null
+    api_key_env: GOOGLE_API_KEY
+
+  judge:
+    provider: openai
+    model: gpt-4o             # stronger model for the final verdict
+    base_url: null
+    api_key_env: OPENAI_API_KEY

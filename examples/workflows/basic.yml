@@ -1,0 +1,24 @@
+# Minimal audit-packs setup.
+# Posts inline PR comments for NIST 800-53 and SOC 2 findings on changed lines.
+# Fails the check if any high or critical severity finding is found.
+name: Audit Packs
+
+on:
+  pull_request:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0       # required for diff-only scanning
+
+      - uses: prakharsingh/audit-packs@v1
+        with:
+          frameworks: nist-800-53,soc2
+          fail-on: high

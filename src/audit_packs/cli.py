@@ -10,23 +10,27 @@ or the user) and drives the full pipeline:
 IO boundary: this module calls engines.py (subprocess), report.py (HTTP/file IO),
 and writes output files to GITHUB_WORKSPACE. All other logic is pure.
 """
+
 from __future__ import annotations
 
-import json
 import os
 import sys
 from dataclasses import replace
 
 from audit_packs.adjudicate import AdjudicationMode
 from audit_packs.models import SEVERITIES
-from audit_packs.engines import run_checkov, run_semgrep, run_git_diff, read_codeql_sarif
+from audit_packs.engines import (
+    run_checkov,
+    run_semgrep,
+    run_git_diff,
+    read_codeql_sarif,
+)
 from audit_packs.normalize import sarif_to_findings
 from audit_packs.diff import parse_unified_diff
 from audit_packs.packs import map_findings
 from audit_packs.coverage import compute_coverage
 from audit_packs.oscal import to_assessment_results
 from audit_packs.report import (
-    build_comments,
     build_coverage_matrix,
     build_sarif,
     gate_failed,
@@ -39,12 +43,20 @@ _VALID_SCAN_MODES = ("diff", "full", "both")
 _FRAMEWORK_ALIASES: dict[str, str] = {
     "gdpr": "gdpr",
     "hipaa": "hipaa",
-    "soc2": "soc2", "soc-2": "soc2",
-    "iso27001": "iso27001", "iso-27001": "iso27001",
-    "pci-dss": "pci-dss", "pcidss": "pci-dss", "pci_dss": "pci-dss",
-    "nist-800-53": "nist-800-53", "nist800-53": "nist-800-53", "nist": "nist-800-53",
+    "soc2": "soc2",
+    "soc-2": "soc2",
+    "iso27001": "iso27001",
+    "iso-27001": "iso27001",
+    "pci-dss": "pci-dss",
+    "pcidss": "pci-dss",
+    "pci_dss": "pci-dss",
+    "nist-800-53": "nist-800-53",
+    "nist800-53": "nist-800-53",
+    "nist": "nist-800-53",
     "fedramp": "fedramp",
-    "org-policy": "org-policy", "org_policy": "org-policy", "internal": "org-policy",
+    "org-policy": "org-policy",
+    "org_policy": "org-policy",
+    "internal": "org-policy",
 }
 
 
@@ -66,39 +78,82 @@ def _rel(path: str, repo_dir: str) -> str:
     abs_path = os.path.abspath(path)
     abs_repo = os.path.abspath(repo_dir)
     if abs_path.startswith(abs_repo + os.sep):
-        return abs_path[len(abs_repo) + 1:]
+        return abs_path[len(abs_repo) + 1 :]
     return path
 
 
-def analyze(repo_dir, changed, packs_dir, rules_path, frameworks, adj_mode=AdjudicationMode.OFF,
-            model_config=None, pr_context=None, codeql_sarif_dir="",
-            precision_data=None, weights=None, threshold=0.70):
+def analyze(
+    repo_dir,
+    changed,
+    packs_dir,
+    rules_path,
+    frameworks,
+    adj_mode=AdjudicationMode.OFF,
+    model_config=None,
+    pr_context=None,
+    codeql_sarif_dir="",
+    precision_data=None,
+    weights=None,
+    threshold=0.70,
+):
     """Run engines, enrich, adjudicate, score, and return ScoredFindings for diff-changed lines."""
-    from audit_packs.agents import NoOpAgent
     from audit_packs.evidence import enrich, evidence_confidence
     from audit_packs.dataflow import extract_data_flows, flow_confidence
     from audit_packs.confidence import (
-        ScoreComponents, apply_confidence_gate, get_historical_precision, control_severity_score,
+        ScoreComponents,
+        apply_confidence_gate,
+        get_historical_precision,
+        control_severity_score,
     )
     from audit_packs.adjudicate import adjudicate as adj_finding
     from audit_packs.normalize import extract_rule_confidences
 
     if model_config is None:
         from audit_packs.adjudicate import load_model_config
+
         model_config = load_model_config()
     if precision_data is None:
         precision_data = {}
     if weights is None:
         from audit_packs.confidence import DEFAULT_WEIGHTS
+
         weights = DEFAULT_WEIGHTS
 
-    # Run detection engines
-    checkov_sarif = run_checkov(repo_dir)
-    semgrep_sarif = run_semgrep(repo_dir, rules_path)
-    codeql_sarif = read_codeql_sarif(codeql_sarif_dir) if codeql_sarif_dir else {"runs": []}
+    # Run detection engines in parallel using async engines
+    async def _run_scans_parallel():
+        import asyncio
+        from audit_packs.engines import CheckovEngine, SemgrepEngine, CodeQLEngine
 
-    # Run agent stubs (no-op in Phase 1)
-    agent = NoOpAgent()
+        checkov_task = asyncio.create_task(CheckovEngine().run_scan_async(repo_dir, {}))
+        semgrep_task = asyncio.create_task(
+            SemgrepEngine().run_scan_async(repo_dir, {"rules_path": rules_path})
+        )
+        if codeql_sarif_dir:
+            codeql_task = asyncio.create_task(
+                CodeQLEngine().run_scan_async(codeql_sarif_dir, {})
+            )
+        else:
+            codeql_task = None
+
+        c_sarif, s_sarif = await asyncio.gather(checkov_task, semgrep_task)
+        q_sarif = await codeql_task if codeql_task else {"runs": []}
+        return c_sarif, s_sarif, q_sarif
+
+    try:
+        import asyncio
+
+        checkov_sarif, semgrep_sarif, codeql_sarif = asyncio.run(_run_scans_parallel())
+    except RuntimeError:
+        checkov_sarif = run_checkov(repo_dir)
+        semgrep_sarif = run_semgrep(repo_dir, rules_path)
+        codeql_sarif = (
+            read_codeql_sarif(codeql_sarif_dir) if codeql_sarif_dir else {"runs": []}
+        )
+
+    # Run all registered detection agents for Phase 2
+    from audit_packs.agents import build_agents
+
+    agents = build_agents(frameworks, packs_dir)
     changed_file_texts = {}
     for rel_path in changed:
         abs_path = os.path.join(repo_dir, rel_path)
@@ -107,7 +162,6 @@ def analyze(repo_dir, changed, packs_dir, rules_path, frameworks, adj_mode=Adjud
                 changed_file_texts[rel_path] = open(abs_path).read()
             except OSError:
                 pass
-    agent_sarif = agent.detect(changed_file_texts)
 
     rule_confidences: dict[str, float] = {}
     rule_confidences.update(extract_rule_confidences(semgrep_sarif))
@@ -117,12 +171,22 @@ def analyze(repo_dir, changed, packs_dir, rules_path, frameworks, adj_mode=Adjud
     findings += sarif_to_findings(checkov_sarif, "checkov")
     findings += sarif_to_findings(semgrep_sarif, "semgrep")
     findings += sarif_to_findings(codeql_sarif, "codeql")
-    findings += sarif_to_findings(agent_sarif, "noop-agent")
+
+    for agent in agents:
+        agent_sarif = agent.detect(changed_file_texts)
+        rule_confidences.update(extract_rule_confidences(agent_sarif))
+        findings += sarif_to_findings(agent_sarif, f"{agent.framework}-agent")
 
     # Extract data flows per file (for flow_confidence)
     data_flows: dict[str, list] = {}
     for rel_path, file_text in changed_file_texts.items():
-        lang = "python" if rel_path.endswith(".py") else "hcl" if rel_path.endswith(".tf") else "yaml"
+        lang = (
+            "python"
+            if rel_path.endswith(".py")
+            else "hcl"
+            if rel_path.endswith(".tf")
+            else "yaml"
+        )
         data_flows[rel_path] = extract_data_flows(file_text, lang)
 
     # Enrich findings and compute evidence_confidence per finding
@@ -156,7 +220,9 @@ def analyze(repo_dir, changed, packs_dir, rules_path, frameworks, adj_mode=Adjud
         f_conf = flow_confidence(flows, finding.line)
         ev_conf = ev_conf_map.get(id(finding), 0.4)
         rule_conf = rule_confidences.get(finding.check_id, 0.6)
-        hist_prec = get_historical_precision(finding.check_id, cf.framework, precision_data)
+        hist_prec = get_historical_precision(
+            finding.check_id, cf.framework, precision_data
+        )
         ctrl_sev = control_severity_score(finding.severity)
 
         components = ScoreComponents(
@@ -169,18 +235,53 @@ def analyze(repo_dir, changed, packs_dir, rules_path, frameworks, adj_mode=Adjud
         )
         pairs.append((result, components))
 
-    return apply_confidence_gate(pairs, threshold=threshold, mode=adj_mode, weights=weights)
+    return apply_confidence_gate(
+        pairs, threshold=threshold, mode=adj_mode, weights=weights
+    )
 
 
-def assess(repo_dir, packs_dir, rules_path, frameworks, adj_mode=AdjudicationMode.OFF,
-           model_config=None, precision_data=None, weights=None, threshold=0.70):
+def _read_all_files(repo_dir: str) -> dict[str, str]:
+    file_texts = {}
+    for root, dirs, files in os.walk(repo_dir):
+        dirs[:] = [
+            d
+            for d in dirs
+            if not d.startswith(".")
+            and d not in ("venv", ".venv", "node_modules", "build", "dist")
+        ]
+        for file in files:
+            if file.endswith((".py", ".tf", ".yaml", ".yml", ".json")):
+                abs_path = os.path.join(root, file)
+                rel_path = os.path.relpath(abs_path, repo_dir)
+                try:
+                    with open(abs_path, encoding="utf-8", errors="ignore") as fh:
+                        file_texts[rel_path] = fh.read()
+                except Exception:
+                    pass
+    return file_texts
+
+
+def assess(
+    repo_dir,
+    packs_dir,
+    rules_path,
+    frameworks,
+    adj_mode=AdjudicationMode.OFF,
+    model_config=None,
+    precision_data=None,
+    weights=None,
+    threshold=0.70,
+):
     """Run engines over the full workspace and return ControlStatus objects.
 
     This is the path that feeds the coverage matrix, OSCAL output, and
     aggregate SARIF — it gives posture across all IaC, not just the PR diff.
     """
     from audit_packs.confidence import (
-        ScoreComponents, apply_confidence_gate, get_historical_precision, control_severity_score,
+        ScoreComponents,
+        apply_confidence_gate,
+        get_historical_precision,
+        control_severity_score,
     )
     from audit_packs.adjudicate import adjudicate as adj_finding
     from audit_packs.normalize import extract_rule_confidences
@@ -189,17 +290,41 @@ def assess(repo_dir, packs_dir, rules_path, frameworks, adj_mode=AdjudicationMod
 
     if model_config is None:
         from audit_packs.adjudicate import load_model_config
+
         model_config = load_model_config()
     if precision_data is None:
         precision_data = {}
     if weights is None:
         from audit_packs.confidence import DEFAULT_WEIGHTS
+
         weights = DEFAULT_WEIGHTS
 
-    # Run detection engines
-    checkov_sarif = run_checkov(repo_dir)
-    semgrep_sarif = run_semgrep(repo_dir, rules_path)
-    codeql_sarif = {"runs": []}
+    # Run detection engines in parallel using async engines
+    async def _run_scans_parallel_assess():
+        import asyncio
+        from audit_packs.engines import CheckovEngine, SemgrepEngine
+
+        checkov_task = asyncio.create_task(CheckovEngine().run_scan_async(repo_dir, {}))
+        semgrep_task = asyncio.create_task(
+            SemgrepEngine().run_scan_async(repo_dir, {"rules_path": rules_path})
+        )
+
+        c_sarif, s_sarif = await asyncio.gather(checkov_task, semgrep_task)
+        return c_sarif, s_sarif
+
+    try:
+        import asyncio
+
+        checkov_sarif, semgrep_sarif = asyncio.run(_run_scans_parallel_assess())
+    except RuntimeError:
+        checkov_sarif = run_checkov(repo_dir)
+        semgrep_sarif = run_semgrep(repo_dir, rules_path)
+
+    # Load and run Phase 2 detection agents over the full workspace
+    from audit_packs.agents import build_agents
+
+    agents = build_agents(frameworks, packs_dir)
+    all_file_texts = _read_all_files(repo_dir)
 
     rule_confidences: dict[str, float] = {}
     rule_confidences.update(extract_rule_confidences(semgrep_sarif))
@@ -208,21 +333,35 @@ def assess(repo_dir, packs_dir, rules_path, frameworks, adj_mode=AdjudicationMod
     findings += sarif_to_findings(checkov_sarif, "checkov")
     findings += sarif_to_findings(semgrep_sarif, "semgrep")
 
+    for agent in agents:
+        agent_sarif = agent.detect(all_file_texts)
+        rule_confidences.update(extract_rule_confidences(agent_sarif))
+        findings += sarif_to_findings(agent_sarif, f"{agent.framework}-agent")
+
     # Group by file and read file text for doc_context and flow_confidence
     changed_file_texts = {}
     for f in findings:
         rel_path = _rel(f.file, repo_dir)
         if rel_path not in changed_file_texts:
-            abs_path = os.path.join(repo_dir, rel_path)
-            if os.path.isfile(abs_path):
-                try:
-                    changed_file_texts[rel_path] = open(abs_path).read()
-                except OSError:
-                    pass
+            if rel_path in all_file_texts:
+                changed_file_texts[rel_path] = all_file_texts[rel_path]
+            else:
+                abs_path = os.path.join(repo_dir, rel_path)
+                if os.path.isfile(abs_path):
+                    try:
+                        changed_file_texts[rel_path] = open(abs_path).read()
+                    except OSError:
+                        pass
 
     data_flows: dict[str, list] = {}
     for rel_path, file_text in changed_file_texts.items():
-        lang = "python" if rel_path.endswith(".py") else "hcl" if rel_path.endswith(".tf") else "yaml"
+        lang = (
+            "python"
+            if rel_path.endswith(".py")
+            else "hcl"
+            if rel_path.endswith(".tf")
+            else "yaml"
+        )
         data_flows[rel_path] = extract_data_flows(file_text, lang)
 
     # Enrich findings
@@ -253,7 +392,9 @@ def assess(repo_dir, packs_dir, rules_path, frameworks, adj_mode=AdjudicationMod
         f_conf = flow_confidence(flows, finding.line)
         ev_conf = ev_conf_map.get(id(finding), 0.4)
         rule_conf = rule_confidences.get(finding.check_id, 0.6)
-        hist_prec = get_historical_precision(finding.check_id, cf.framework, precision_data)
+        hist_prec = get_historical_precision(
+            finding.check_id, cf.framework, precision_data
+        )
         ctrl_sev = control_severity_score(finding.severity)
 
         components = ScoreComponents(
@@ -266,7 +407,9 @@ def assess(repo_dir, packs_dir, rules_path, frameworks, adj_mode=AdjudicationMod
         )
         pairs.append((result, components))
 
-    scored = apply_confidence_gate(pairs, threshold=threshold, mode=adj_mode, weights=weights)
+    scored = apply_confidence_gate(
+        pairs, threshold=threshold, mode=adj_mode, weights=weights
+    )
     surfaced_cfs = [sf.result.control_finding for sf in scored if sf.surfaced]
     return compute_coverage(surfaced_cfs, packs_dir, frameworks)
 
@@ -295,7 +438,10 @@ def main() -> int:
 
     fail_on = os.environ.get("FAIL_ON", "high")
     if fail_on not in SEVERITIES:
-        print(f"Error: FAIL_ON='{fail_on}' is not valid. Choose from: {', '.join(SEVERITIES)}", file=sys.stderr)
+        print(
+            f"Error: FAIL_ON='{fail_on}' is not valid. Choose from: {', '.join(SEVERITIES)}",
+            file=sys.stderr,
+        )
         return 2
 
     scan_mode = os.environ.get("SCAN_MODE", "both").lower()
@@ -308,13 +454,20 @@ def main() -> int:
     emit_sarif = os.environ.get("EMIT_SARIF", "true").lower() == "true"
 
     adj_mode_str = os.environ.get("ADJUDICATION_MODE", "off").lower()
-    adj_mode = AdjudicationMode(adj_mode_str) if adj_mode_str in {m.value for m in AdjudicationMode} else AdjudicationMode.OFF
+    adj_mode = (
+        AdjudicationMode(adj_mode_str)
+        if adj_mode_str in {m.value for m in AdjudicationMode}
+        else AdjudicationMode.OFF
+    )
 
     threshold_str = os.environ.get("CONFIDENCE_THRESHOLD", "0.70")
     try:
         threshold = float(threshold_str)
     except ValueError:
-        print(f"Error: CONFIDENCE_THRESHOLD='{threshold_str}' is not a valid float.", file=sys.stderr)
+        print(
+            f"Error: CONFIDENCE_THRESHOLD='{threshold_str}' is not a valid float.",
+            file=sys.stderr,
+        )
         return 2
 
     # Load score weights
@@ -353,13 +506,18 @@ def main() -> int:
     if audit_confirm:
         from audit_packs.confidence import update_precision
         import tempfile
+
         for pair in audit_confirm.split(","):
             pair = pair.strip()
             if ":" in pair:
                 chk, fw = pair.split(":", 1)
-                precision_data = update_precision(chk.strip(), fw.strip(), precision_data)
+                precision_data = update_precision(
+                    chk.strip(), fw.strip(), precision_data
+                )
         os.makedirs(".audit-cache", exist_ok=True)
-        with tempfile.NamedTemporaryFile("w", dir=".audit-cache", delete=False, suffix=".tmp") as fh:
+        with tempfile.NamedTemporaryFile(
+            "w", dir=".audit-cache", delete=False, suffix=".tmp"
+        ) as fh:
             _json.dump(precision_data, fh)
             tmp = fh.name
         os.replace(tmp, precision_path)
@@ -369,9 +527,11 @@ def main() -> int:
     if adj_mode is not AdjudicationMode.OFF and pr_number:
         try:
             from audit_packs.evidence import fetch_pr_context
+
             pr_context = fetch_pr_context(repo, pr_number, token)
         except Exception as exc:
             import logging
+
             logging.getLogger(__name__).warning("Could not fetch PR context: %s", exc)
 
     gate_tripped = False
@@ -380,27 +540,52 @@ def main() -> int:
         diff_text = run_git_diff(workspace, base_ref)
         changed = parse_unified_diff(diff_text)
         scored = analyze(
-            workspace, changed, packs_dir, rules_path, frameworks,
-            adj_mode=adj_mode, model_config=model_config, pr_context=pr_context,
-            codeql_sarif_dir=codeql_sarif_dir, precision_data=precision_data,
-            weights=weights, threshold=threshold,
+            workspace,
+            changed,
+            packs_dir,
+            rules_path,
+            frameworks,
+            adj_mode=adj_mode,
+            model_config=model_config,
+            pr_context=pr_context,
+            codeql_sarif_dir=codeql_sarif_dir,
+            precision_data=precision_data,
+            weights=weights,
+            threshold=threshold,
         )
         from audit_packs.report import build_comments, build_summary_comment
+
         comments = build_comments(scored, commit_sha)
         summary = build_summary_comment(scored, threshold=threshold, weights=weights)
         if pr_number:
-            post_review(comments, summary, repo=repo, pr_number=pr_number, token=token, commit_sha=commit_sha)
+            post_review(
+                comments,
+                summary,
+                repo=repo,
+                pr_number=pr_number,
+                token=token,
+                commit_sha=commit_sha,
+            )
         else:
-            print("PR_NUMBER not set; skipping posting PR review comment.", file=sys.stderr)
+            print(
+                "PR_NUMBER not set; skipping posting PR review comment.",
+                file=sys.stderr,
+            )
         surfaced_cfs = [sf.result.control_finding for sf in scored if sf.surfaced]
         if gate_failed(surfaced_cfs, fail_on):
             gate_tripped = True
 
     if scan_mode in ("full", "both"):
         control_statuses = assess(
-            workspace, packs_dir, rules_path, frameworks, adj_mode=adj_mode,
-            model_config=model_config, precision_data=precision_data,
-            weights=weights, threshold=threshold,
+            workspace,
+            packs_dir,
+            rules_path,
+            frameworks,
+            adj_mode=adj_mode,
+            model_config=model_config,
+            precision_data=precision_data,
+            weights=weights,
+            threshold=threshold,
         )
         if emit_oscal:
             oscal_path = os.path.join(workspace, "oscal.json")
@@ -414,7 +599,9 @@ def main() -> int:
                 content = build_coverage_matrix(control_statuses, fmt=fmt)
                 with open(cov_path, "w") as fh:
                     fh.write(content)
-            print(f"::notice::Coverage matrix written to {os.path.join(workspace, 'coverage.md')}")
+            print(
+                f"::notice::Coverage matrix written to {os.path.join(workspace, 'coverage.md')}"
+            )
             write_job_summary(build_coverage_matrix(control_statuses, fmt="md"))
         if emit_sarif:
             all_cfs = [cf for cs in control_statuses for cf in cs.findings]

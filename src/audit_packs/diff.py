@@ -2,12 +2,13 @@ import re
 
 _HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
 
+
 def parse_unified_diff(diff_text: str) -> dict[str, set[int]]:
     result: dict[str, set[int]] = {}
     current: str | None = None
     for line in diff_text.splitlines():
         if line.startswith("+++ b/"):
-            current = line[len("+++ b/"):].strip()
+            current = line[len("+++ b/") :].strip()
             continue
         if line.startswith("+++ ") or line.startswith("--- "):
             continue

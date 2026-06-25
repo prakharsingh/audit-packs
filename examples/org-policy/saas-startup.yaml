@@ -1,0 +1,27 @@
+# Org-policy pack for a SaaS startup.
+# Copy to packs/org-policy.yaml and customise control IDs, titles, and maps_to entries.
+# Each control maps to one or more NIST 800-53 controls that the detection engines observe in IaC.
+id: org-policy
+title: Acme SaaS Security Policy v1
+crosswalk: nist-800-53
+
+controls:
+  # Encryption
+  - { id: ACME-ENC-1, title: All data stores must be encrypted at rest,         maps_to: [SC-13, SC-28] }
+  - { id: ACME-ENC-2, title: All service-to-service traffic must use TLS 1.2+,  maps_to: [SC-8, SC-13] }
+
+  # Network
+  - { id: ACME-NET-1, title: No S3 buckets may be public,                       maps_to: [SC-7] }
+  - { id: ACME-NET-2, title: Security groups must not allow 0.0.0.0/0 on 22/3389, maps_to: [SC-7] }
+
+  # Identity and access
+  - { id: ACME-IAM-1, title: IAM policies must not use wildcard actions (*),    maps_to: [AC-3, AC-6] }
+  - { id: ACME-IAM-2, title: Root account must not have active access keys,     maps_to: [IA-5, AC-6] }
+  - { id: ACME-IAM-3, title: MFA must be enabled for all IAM users,             maps_to: [IA-2] }
+
+  # Audit and logging
+  - { id: ACME-LOG-1, title: CloudTrail must be enabled in all regions,         maps_to: [AU-2, AU-12] }
+  - { id: ACME-LOG-2, title: S3 access logging must be enabled,                 maps_to: [AU-2] }
+
+  # Secret management
+  - { id: ACME-SEC-1, title: No hardcoded credentials in source code or IaC,   maps_to: [IA-5] }

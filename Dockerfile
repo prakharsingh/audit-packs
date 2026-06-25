@@ -6,5 +6,5 @@ COPY src ./src
 COPY packs ./packs
 COPY rules ./rules
 RUN pip install --no-cache-dir . checkov semgrep
-ENV PACKS_DIR=/app/packs RULES_PATH=/app/rules/weak-cipher.yaml
+ENV PACKS_DIR=/app/packs RULES_PATH=/app/rules
 ENTRYPOINT ["python", "-m", "audit_packs.cli"]
