@@ -17,7 +17,7 @@ controls:
     title: Transmission Confidentiality and Integrity
     checks:
       - { engine: checkov, ids: [CKV_AWS_2, CKV_AWS_86, CKV_AWS_68] }
-      - { engine: semgrep, ids: [no-tls-verify] }
+      - { engine: semgrep, ids: [no-tls-verify, ssl-verify-disabled, tls-enabled-false] }
 
   - id: SC-12
     title: Cryptographic Key Establishment and Management
@@ -37,6 +37,7 @@ controls:
     title: Protection of Information at Rest
     checks:
       - { engine: checkov, ids: [CKV_AWS_17, CKV_AWS_27, CKV_AWS_77, CKV_AWS_84, CKV_AWS_189, CKV_AWS_211] }
+      - { engine: semgrep, ids: [pii-variable-name] }
       - { engine: dataflow-agent, ids: [DFA-001] }
       - { engine: gdpr-agent, ids: [GDPR-001] }
       - { engine: hipaa-agent, ids: [HIPAA-001] }

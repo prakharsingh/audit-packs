@@ -64,6 +64,18 @@ class TestRuleStructure:
         missing = nist_semgrep_ids - authored_ids
         assert not missing, f"These semgrep ids appear in nist-800-53.yaml but have no rule file: {missing}"
 
+    def test_all_rule_file_ids_appear_in_nist_pack(self):
+        """Every semgrep rule id in rules/ must appear in nist-800-53.yaml (forward direction)."""
+        nist_semgrep_ids = set(_nist_semgrep_ids().keys())
+        authored_ids: set[str] = set()
+        for f in RULES_DIR.glob("*.yaml"):
+            authored_ids.update(_load_rule_ids(f))
+        orphans = authored_ids - nist_semgrep_ids
+        assert not orphans, (
+            f"These rule ids exist in rules/ but have no entry in nist-800-53.yaml: {orphans}\n"
+            "Add them to the appropriate control's semgrep checks list."
+        )
+
 
 class TestSpecificRules:
     def test_weak_cipher_rule_exists_and_maps_to_sc13(self):
