@@ -173,7 +173,7 @@ class CodeQLEngine(BaseEngine):
         return "codeql"
 
     async def run_scan_async(self, target: str, options: dict) -> dict:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, self._read_codeql_sarif_sync, target)
 
     def _read_codeql_sarif_sync(self, sarif_dir: str) -> dict:
@@ -261,7 +261,7 @@ class ASTEngine(BaseEngine):
 
     async def run_scan_async(self, target: str, options: dict) -> dict:
         rules_dir = options.get("rules_dir", "ast-rules")
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None, self._run_ast_rules_sync, target, rules_dir
         )
@@ -281,13 +281,23 @@ class ASTEngine(BaseEngine):
                 name = os.path.basename(rf)[:-3]
                 # Use a namespaced key to avoid clobbering stdlib modules (e.g. ast, os, re)
                 module_key = f"audit_packs.ast_rules.{name}"
-                spec = importlib.util.spec_from_file_location(module_key, rf)
-                if spec and spec.loader:
+                if module_key in sys.modules:
+                    module = sys.modules[module_key]
+                else:
+                    spec = importlib.util.spec_from_file_location(module_key, rf)
+                    if not (spec and spec.loader):
+                        continue
                     module = importlib.util.module_from_spec(spec)
+                    # Register before exec so circular imports within rules resolve,
+                    # but remove on failure to avoid leaving a broken module cached.
                     sys.modules[module_key] = module
-                    spec.loader.exec_module(module)
-                    if hasattr(module, "RULE_ID") and hasattr(module, "detect"):
-                        rules.append(module)
+                    try:
+                        spec.loader.exec_module(module)
+                    except Exception:
+                        del sys.modules[module_key]
+                        raise
+                if hasattr(module, "RULE_ID") and hasattr(module, "detect"):
+                    rules.append(module)
             except Exception as exc:
                 log.warning(f"Failed to load AST rule from {rf}: {exc}")
 
@@ -311,7 +321,7 @@ class ASTEngine(BaseEngine):
                 d
                 for d in dirs
                 if not d.startswith(".")
-                and d not in ("venv", ".venv", "node_modules", "build", "dist")
+                and d not in ("venv", ".venv", "env", "node_modules", "build", "dist")
             ]
             for file in files:
                 if file.endswith(".py"):

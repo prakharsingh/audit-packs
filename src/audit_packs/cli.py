@@ -99,6 +99,8 @@ def analyze(
     ast_rules_dir="ast-rules",
 ):
     """Run engines, enrich, adjudicate, score, and return ScoredFindings for diff-changed lines."""
+    if ast_rules_dir and not os.path.isabs(ast_rules_dir):
+        ast_rules_dir = os.path.join(repo_dir, ast_rules_dir)
     from audit_packs.evidence import enrich, evidence_confidence
     from audit_packs.dataflow import extract_data_flows, flow_confidence
     from audit_packs.confidence import (
@@ -181,9 +183,9 @@ def analyze(
                 pass
 
     rule_confidences: dict[str, float] = {}
-    rule_confidences.update(extract_rule_confidences(semgrep_sarif))
-    rule_confidences.update(extract_rule_confidences(codeql_sarif))
-    rule_confidences.update(extract_rule_confidences(ast_sarif))
+    rule_confidences.update(extract_rule_confidences(semgrep_sarif, "semgrep"))
+    rule_confidences.update(extract_rule_confidences(codeql_sarif, "codeql"))
+    rule_confidences.update(extract_rule_confidences(ast_sarif, "ast"))
 
     findings = []
     findings += sarif_to_findings(checkov_sarif, "checkov")
@@ -193,8 +195,9 @@ def analyze(
 
     for agent in agents:
         agent_sarif = agent.detect(changed_file_texts)
-        rule_confidences.update(extract_rule_confidences(agent_sarif))
-        findings += sarif_to_findings(agent_sarif, f"{agent.framework}-agent")
+        engine_name = f"{agent.framework}-agent"
+        rule_confidences.update(extract_rule_confidences(agent_sarif, engine_name))
+        findings += sarif_to_findings(agent_sarif, engine_name)
 
     # Extract data flows per file (for flow_confidence)
     data_flows: dict[str, list] = {}
@@ -300,6 +303,8 @@ def assess(
     This is the path that feeds the coverage matrix, OSCAL output, and
     aggregate SARIF — it gives posture across all IaC, not just the PR diff.
     """
+    if ast_rules_dir and not os.path.isabs(ast_rules_dir):
+        ast_rules_dir = os.path.join(repo_dir, ast_rules_dir)
     from audit_packs.confidence import (
         ScoreComponents,
         apply_confidence_gate,
@@ -355,16 +360,16 @@ def assess(
         read_codeql_sarif(codeql_sarif_dir) if codeql_sarif_dir else {"runs": []}
     )
     rule_confidences: dict[str, float] = {}
-    rule_confidences.update(extract_rule_confidences(codeql_sarif))
-    rule_confidences.update(extract_rule_confidences(ast_sarif))
+    rule_confidences.update(extract_rule_confidences(checkov_sarif, "checkov"))
+    rule_confidences.update(extract_rule_confidences(semgrep_sarif, "semgrep"))
+    rule_confidences.update(extract_rule_confidences(codeql_sarif, "codeql"))
+    rule_confidences.update(extract_rule_confidences(ast_sarif, "ast"))
 
     # Load and run Phase 2 detection agents over the full workspace
     from audit_packs.agents import build_agents
 
     agents = build_agents(frameworks, packs_dir)
     all_file_texts = _read_all_files(repo_dir)
-
-    rule_confidences.update(extract_rule_confidences(semgrep_sarif))
 
     findings = []
     findings += sarif_to_findings(checkov_sarif, "checkov")
@@ -374,8 +379,9 @@ def assess(
 
     for agent in agents:
         agent_sarif = agent.detect(all_file_texts)
-        rule_confidences.update(extract_rule_confidences(agent_sarif))
-        findings += sarif_to_findings(agent_sarif, f"{agent.framework}-agent")
+        engine_name = f"{agent.framework}-agent"
+        rule_confidences.update(extract_rule_confidences(agent_sarif, engine_name))
+        findings += sarif_to_findings(agent_sarif, engine_name)
 
     # Group by file and read file text for doc_context and flow_confidence
     changed_file_texts = {}

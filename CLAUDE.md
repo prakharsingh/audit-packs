@@ -16,7 +16,7 @@ Frameworks: NIST 800-53, SOC 2, GDPR, HIPAA, ISO 27001, PCI-DSS, FedRAMP, org-po
 
 ## Key design rules
 
-- **Never re-implement detection logic.** Engines (Checkov, Semgrep, CodeQL) are invoked as subprocesses; findings come back as SARIF.
+- **Never re-implement detection logic.** Engines (Checkov, Semgrep, CodeQL) are invoked as subprocesses; findings come back as SARIF. `ASTEngine` is the sole intentional exception: it runs Python AST visitors in-process for patterns not expressible in Semgrep YAML (e.g. taint flows that require multi-node AST traversal). Do not add further in-process analysis engines; extend `rules/*.yaml` for new Semgrep patterns instead.
 - **Packs are data, not code.** A framework pack = YAML mapping `(engine, check_id) → control`. NIST 800-53 is the canonical pack; all other frameworks are crosswalk packs that reference it via `crosswalk: nist-800-53` and `maps_to:` entries.
 - **Diff-filtered only (diff path).** Only findings on lines added/changed in the PR are reported in inline comments and the severity gate.
 - **SARIF is the lingua franca.** All engines and agents emit SARIF; `normalize.py` converts it to `Finding` dataclasses before anything else touches the output.
