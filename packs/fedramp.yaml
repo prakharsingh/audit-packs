@@ -1,0 +1,15 @@
+id: fedramp
+title: FedRAMP Moderate Baseline
+crosswalk: nist-800-53
+# FedRAMP Moderate is a NIST 800-53 profile; control IDs are identical.
+# This pack surfaces findings under the FedRAMP label for agencies that
+# require FedRAMP-specific reporting distinct from the base NIST catalogue.
+controls:
+  - { id: SC-13, title: Cryptographic Protection (FedRAMP Moderate),          maps_to: [SC-13] }
+  - { id: SC-28, title: Protection of Information at Rest (FedRAMP Moderate), maps_to: [SC-28] }
+  - { id: SC-8,  title: Transmission Confidentiality (FedRAMP Moderate),      maps_to: [SC-8] }
+  - { id: SC-7,  title: Boundary Protection (FedRAMP Moderate),               maps_to: [SC-7] }
+  - { id: AC-3,  title: Access Enforcement (FedRAMP Moderate),                maps_to: [AC-3] }
+  - { id: AC-6,  title: Least Privilege (FedRAMP Moderate),                   maps_to: [AC-6] }
+  - { id: IA-5,  title: Authenticator Management (FedRAMP Moderate),          maps_to: [IA-5] }
+  - { id: AU-2,  title: Audit Events (FedRAMP Moderate),                      maps_to: [AU-2] }

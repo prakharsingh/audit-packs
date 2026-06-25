@@ -1,0 +1,9 @@
+id: gdpr
+title: EU General Data Protection Regulation (GDPR)
+crosswalk: nist-800-53
+controls:
+  - { id: Art-25,   title: Data Protection by Design and by Default,  maps_to: [SC-13, SC-28] }
+  - { id: Art-30,   title: Records of Processing Activities,           maps_to: [AU-2] }
+  - { id: Art-32-a, title: Pseudonymisation and Encryption,            maps_to: [SC-13, SC-28] }
+  - { id: Art-32-b, title: Confidentiality and Integrity of Processing, maps_to: [SC-8, SC-7] }
+  - { id: Art-32-d, title: Regular Testing and Evaluation,             maps_to: [AU-2] }

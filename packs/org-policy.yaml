@@ -1,0 +1,13 @@
+id: org-policy
+title: Internal Organization Security Policy
+crosswalk: nist-800-53
+# Customize this pack for your organization's internal controls.
+# Each control maps to one or more NIST 800-53 controls that the
+# detection engines can observe in IaC code.
+controls:
+  - { id: ORG-ENC-1, title: All Data Must Be Encrypted at Rest,          maps_to: [SC-13, SC-28] }
+  - { id: ORG-TLS-1, title: All Transmissions Must Use TLS 1.2+,         maps_to: [SC-8, SC-13] }
+  - { id: ORG-NET-1, title: No Unrestricted Inbound Network Access,      maps_to: [SC-7] }
+  - { id: ORG-ACC-1, title: Enforce Least-Privilege Access Controls,     maps_to: [AC-3, AC-6] }
+  - { id: ORG-IAM-1, title: Rotate and Expire Credentials Regularly,     maps_to: [IA-5] }
+  - { id: ORG-LOG-1, title: Enable Audit Logging for All Services,       maps_to: [AU-2] }
