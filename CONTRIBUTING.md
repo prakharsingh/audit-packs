@@ -55,3 +55,13 @@ Custom rules extend detection coverage for patterns engines like Checkov cannot 
 1. **Conventional Commits**: Ensure commit messages follow the [Conventional Commits](https://www.conventionalcommits.org/) specification (e.g. `feat: ...`, `fix: ...`, `docs: ...`, `chore: ...`).
 2. **Atomic Commits**: Group your changes into logical, self-contained commits.
 3. **Run Checks**: Verify that all `pre-commit` checks and tests pass locally before pushing.
+
+## Changelog and Releases
+
+Release notes are generated from Conventional Commit messages with `python-semantic-release`. Use commit types intentionally:
+
+- `feat:` adds a user-visible capability and appears under features.
+- `fix:` corrects user-visible behavior and appears under fixes.
+- `docs:`, `test:`, `refactor:`, and `chore:` are useful for history but usually do not trigger a release by themselves.
+
+The release workflow runs on pushes to `main`, updates `CHANGELOG.md`, bumps `pyproject.toml` and `src/audit_packs/__init__.py`, and creates the GitHub release. Before merging, verify PR titles and commit messages describe the change clearly enough to become release notes.

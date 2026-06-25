@@ -5,6 +5,28 @@ description = "GitHub Action that maps IaC security findings to compliance contr
 license = { text = "Apache-2.0" }
 requires-python = ">=3.11"
 dependencies = ["PyYAML>=6.0", "requests>=2.31"]
+keywords = [
+    "compliance", "security", "nist-800-53", "soc2", "gdpr", "hipaa", "iso27001",
+    "pci-dss", "fedramp", "checkov", "semgrep", "codeql", "github-action", "iac",
+    "sast", "oscal", "grc", "evidence"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Software Development :: Quality Assurance",
+]
+
+[project.urls]
+Homepage = "https://github.com/prakharsingh/audit-packs"
+Repository = "https://github.com/prakharsingh/audit-packs.git"
+"Bug Tracker" = "https://github.com/prakharsingh/audit-packs/issues"
 
 [project.optional-dependencies]
 dev = [
@@ -33,8 +55,10 @@ build_command = "pip install build && python -m build"
 upload_to_pypi = false
 
 [tool.semantic_release.changelog]
-changelog_file = "CHANGELOG.md"
 exclude_commit_patterns = []
+
+[tool.semantic_release.changelog.default_templates]
+changelog_file = "CHANGELOG.md"
 
 [tool.semantic_release.branches.main]
 match = "(main|master)"

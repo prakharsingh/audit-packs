@@ -1,5 +1,7 @@
 import pytest
 import requests
+import json
+import re
 from unittest.mock import patch, MagicMock
 from audit_packs.models import Finding, ControlFinding, ControlStatus, AssessmentStatus
 from audit_packs.report import (
@@ -138,8 +140,66 @@ def test_build_coverage_matrix_md_shows_status_icons():
 def test_build_coverage_matrix_html_is_valid_html():
     statuses = [_cs("CC6.1", AssessmentStatus.PASS)]
     html = build_coverage_matrix(statuses, fmt="html")
+    assert "<!doctype html>" in html
+    assert "<title>Audit Packs Control Coverage Matrix</title>" in html
+    assert 'name="description"' in html
+    assert 'type="application/ld+json"' in html
     assert "<table" in html
     assert "CC6.1" in html
+
+
+def test_build_coverage_matrix_html_supports_seo_metadata():
+    statuses = [_cs("CC6.1", AssessmentStatus.PASS, framework="soc2")]
+    html = build_coverage_matrix(
+        statuses,
+        fmt="html",
+        title="SOC 2 Audit Coverage",
+        description="Public SOC 2 coverage report.",
+        canonical_url="https://example.com/audit/coverage.html",
+    )
+    assert "<title>SOC 2 Audit Coverage</title>" in html
+    assert 'content="Public SOC 2 coverage report."' in html
+    assert 'rel="canonical" href="https://example.com/audit/coverage.html"' in html
+    assert 'property="og:title" content="SOC 2 Audit Coverage"' in html
+    assert 'name="twitter:card" content="summary"' in html
+
+
+def test_build_coverage_matrix_html_json_ld_is_parseable():
+    statuses = [_cs("CC6.1", AssessmentStatus.PASS, framework="soc2")]
+    html = build_coverage_matrix(statuses, fmt="html")
+    match = re.search(
+        r'<script type="application/ld\+json">(.*?)</script>', html, re.DOTALL
+    )
+    assert match
+    schema = json.loads(match.group(1))
+    assert schema["@type"] == "Dataset"
+    assert "soc2" in schema["keywords"]
+
+
+def test_build_coverage_matrix_html_fragment_returns_table_only():
+    statuses = [_cs("CC6.1", AssessmentStatus.PASS)]
+    html = build_coverage_matrix(statuses, fmt="html-fragment")
+    assert html.startswith("<table>")
+    assert "<!doctype html>" not in html
+    assert "CC6.1" in html
+
+
+def test_build_coverage_matrix_html_escapes_control_text():
+    statuses = [
+        ControlStatus(
+            framework="soc2",
+            control_id="CC<script>",
+            control_title='Title "quoted" <unsafe>',
+            status=AssessmentStatus.PASS,
+            check_ids=(),
+            findings=(),
+            evidence=(),
+        )
+    ]
+    html = build_coverage_matrix(statuses, fmt="html-fragment")
+    assert "CC&lt;script&gt;" in html
+    assert "Title &quot;quoted&quot; &lt;unsafe&gt;" in html
+    assert "<unsafe>" not in html
 
 
 def test_build_coverage_matrix_summary_counts():
