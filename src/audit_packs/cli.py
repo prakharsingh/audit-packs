@@ -190,13 +190,15 @@ def analyze(
         data_flows[rel_path] = extract_data_flows(file_text, lang)
 
     # Enrich findings and compute evidence_confidence per finding
-    ev_conf_map: dict[int, float] = {}
+    ev_conf_map: dict[tuple, float] = {}
     enriched_findings = []
     for f in findings:
         rel_path = _rel(f.file, repo_dir)
         file_text = changed_file_texts.get(rel_path, "")
         enriched = enrich(f, file_text, pr_context) if file_text else f
-        ev_conf_map[id(enriched)] = evidence_confidence(enriched, pr_context)
+        ev_conf_map[(enriched.check_id, rel_path, enriched.line)] = evidence_confidence(
+            enriched, pr_context
+        )
         enriched_findings.append(enriched)
 
     # Filter to diff-changed lines
@@ -218,7 +220,7 @@ def analyze(
         rel_path = finding.file
         flows = data_flows.get(rel_path, [])
         f_conf = flow_confidence(flows, finding.line)
-        ev_conf = ev_conf_map.get(id(finding), 0.4)
+        ev_conf = ev_conf_map.get((finding.check_id, finding.file, finding.line), 0.4)
         rule_conf = rule_confidences.get(finding.check_id, 0.6)
         hist_prec = get_historical_precision(
             finding.check_id, cf.framework, precision_data
