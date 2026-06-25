@@ -56,9 +56,17 @@ def sarif_to_findings(sarif: dict, engine: str) -> list[Finding]:
             )
             level_sev = _LEVEL_TO_SEVERITY.get(res.get("level", "warning"), "medium")
             evidence_path = _extract_evidence_path(res)
+
+            raw_id = res.get("ruleId", "")
+            check_id = (
+                raw_id.split(".")[-1]
+                if engine == "semgrep" and "." in raw_id
+                else raw_id
+            )
+
             findings.append(
                 Finding(
-                    check_id=res.get("ruleId", ""),
+                    check_id=check_id,
                     engine=engine,
                     file=path,
                     line=int(line),
@@ -78,7 +86,8 @@ def extract_rule_confidences(sarif: dict) -> dict[str, float]:
         rules = run.get("tool", {}).get("driver", {}).get("rules", [])
         for rule in rules:
             rule_id = rule.get("id", "")
+            norm_id = rule_id.split(".")[-1] if "." in rule_id else rule_id
             conf_str = rule.get("properties", {}).get("confidence", "")
             if conf_str.upper() in _CONFIDENCE_MAP:
-                confidences[rule_id] = _CONFIDENCE_MAP[conf_str.upper()]
+                confidences[norm_id] = _CONFIDENCE_MAP[conf_str.upper()]
     return confidences

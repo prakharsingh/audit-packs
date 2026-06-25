@@ -10,3 +10,5 @@ build/
 .audit-cache/
 .idea/
 node_modules/
+e2e_manual_output/
+results.sarif

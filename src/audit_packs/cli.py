@@ -24,6 +24,7 @@ from audit_packs.engines import (
     run_semgrep,
     run_git_diff,
     read_codeql_sarif,
+    run_ast_rules,
 )
 from audit_packs.normalize import sarif_to_findings
 from audit_packs.diff import parse_unified_diff
@@ -95,6 +96,7 @@ def analyze(
     precision_data=None,
     weights=None,
     threshold=0.70,
+    ast_rules_dir="ast-rules",
 ):
     """Run engines, enrich, adjudicate, score, and return ScoredFindings for diff-changed lines."""
     from audit_packs.evidence import enrich, evidence_confidence
@@ -122,7 +124,12 @@ def analyze(
     # Run detection engines in parallel using async engines
     async def _run_scans_parallel():
         import asyncio
-        from audit_packs.engines import CheckovEngine, SemgrepEngine, CodeQLEngine
+        from audit_packs.engines import (
+            CheckovEngine,
+            SemgrepEngine,
+            CodeQLEngine,
+            ASTEngine,
+        )
 
         checkov_task = asyncio.create_task(CheckovEngine().run_scan_async(repo_dir, {}))
         semgrep_task = asyncio.create_task(
@@ -134,21 +141,28 @@ def analyze(
             )
         else:
             codeql_task = None
+        ast_task = asyncio.create_task(
+            ASTEngine().run_scan_async(repo_dir, {"rules_dir": ast_rules_dir})
+        )
 
         c_sarif, s_sarif = await asyncio.gather(checkov_task, semgrep_task)
         q_sarif = await codeql_task if codeql_task else {"runs": []}
-        return c_sarif, s_sarif, q_sarif
+        a_sarif = await ast_task
+        return c_sarif, s_sarif, q_sarif, a_sarif
 
     try:
         import asyncio
 
-        checkov_sarif, semgrep_sarif, codeql_sarif = asyncio.run(_run_scans_parallel())
+        checkov_sarif, semgrep_sarif, codeql_sarif, ast_sarif = asyncio.run(
+            _run_scans_parallel()
+        )
     except RuntimeError:
         checkov_sarif = run_checkov(repo_dir)
         semgrep_sarif = run_semgrep(repo_dir, rules_path)
         codeql_sarif = (
             read_codeql_sarif(codeql_sarif_dir) if codeql_sarif_dir else {"runs": []}
         )
+        ast_sarif = run_ast_rules(repo_dir, ast_rules_dir)
 
     # Run all registered detection agents for Phase 2
     from audit_packs.agents import build_agents
@@ -166,11 +180,13 @@ def analyze(
     rule_confidences: dict[str, float] = {}
     rule_confidences.update(extract_rule_confidences(semgrep_sarif))
     rule_confidences.update(extract_rule_confidences(codeql_sarif))
+    rule_confidences.update(extract_rule_confidences(ast_sarif))
 
     findings = []
     findings += sarif_to_findings(checkov_sarif, "checkov")
     findings += sarif_to_findings(semgrep_sarif, "semgrep")
     findings += sarif_to_findings(codeql_sarif, "codeql")
+    findings += sarif_to_findings(ast_sarif, "ast")
 
     for agent in agents:
         agent_sarif = agent.detect(changed_file_texts)
@@ -274,6 +290,7 @@ def assess(
     weights=None,
     threshold=0.70,
     codeql_sarif_dir="",
+    ast_rules_dir="ast-rules",
 ):
     """Run engines over the full workspace and return ControlStatus objects.
 
@@ -305,29 +322,38 @@ def assess(
     # Run detection engines in parallel using async engines
     async def _run_scans_parallel_assess():
         import asyncio
-        from audit_packs.engines import CheckovEngine, SemgrepEngine
+        from audit_packs.engines import CheckovEngine, SemgrepEngine, ASTEngine
 
         checkov_task = asyncio.create_task(CheckovEngine().run_scan_async(repo_dir, {}))
         semgrep_task = asyncio.create_task(
             SemgrepEngine().run_scan_async(repo_dir, {"rules_path": rules_path})
         )
+        ast_task = asyncio.create_task(
+            ASTEngine().run_scan_async(repo_dir, {"rules_dir": ast_rules_dir})
+        )
 
-        c_sarif, s_sarif = await asyncio.gather(checkov_task, semgrep_task)
-        return c_sarif, s_sarif
+        c_sarif, s_sarif, a_sarif = await asyncio.gather(
+            checkov_task, semgrep_task, ast_task
+        )
+        return c_sarif, s_sarif, a_sarif
 
     try:
         import asyncio
 
-        checkov_sarif, semgrep_sarif = asyncio.run(_run_scans_parallel_assess())
+        checkov_sarif, semgrep_sarif, ast_sarif = asyncio.run(
+            _run_scans_parallel_assess()
+        )
     except RuntimeError:
         checkov_sarif = run_checkov(repo_dir)
         semgrep_sarif = run_semgrep(repo_dir, rules_path)
+        ast_sarif = run_ast_rules(repo_dir, ast_rules_dir)
 
     codeql_sarif = (
         read_codeql_sarif(codeql_sarif_dir) if codeql_sarif_dir else {"runs": []}
     )
     rule_confidences: dict[str, float] = {}
     rule_confidences.update(extract_rule_confidences(codeql_sarif))
+    rule_confidences.update(extract_rule_confidences(ast_sarif))
 
     # Load and run Phase 2 detection agents over the full workspace
     from audit_packs.agents import build_agents
@@ -341,6 +367,7 @@ def assess(
     findings += sarif_to_findings(checkov_sarif, "checkov")
     findings += sarif_to_findings(semgrep_sarif, "semgrep")
     findings += sarif_to_findings(codeql_sarif, "codeql")
+    findings += sarif_to_findings(ast_sarif, "ast")
 
     for agent in agents:
         agent_sarif = agent.detect(all_file_texts)
@@ -508,6 +535,7 @@ def main() -> int:
         return 2
 
     codeql_sarif_dir = os.environ.get("CODEQL_SARIF_DIR", "")
+    ast_rules_dir = os.environ.get("AST_RULES_DIR", "ast-rules")
 
     # Historical precision
     precision_path = os.path.join(".audit-cache", "precision.json")
@@ -569,6 +597,7 @@ def main() -> int:
             precision_data=precision_data,
             weights=weights,
             threshold=threshold,
+            ast_rules_dir=ast_rules_dir,
         )
         from audit_packs.report import build_comments, build_summary_comment
 
@@ -604,6 +633,7 @@ def main() -> int:
             weights=weights,
             threshold=threshold,
             codeql_sarif_dir=codeql_sarif_dir,
+            ast_rules_dir=ast_rules_dir,
         )
         if emit_oscal:
             oscal_path = os.path.join(workspace, "oscal.json")

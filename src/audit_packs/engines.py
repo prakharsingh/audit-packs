@@ -11,6 +11,20 @@ log = logging.getLogger(__name__)
 _DEFAULT_TIMEOUT = int(os.environ.get("SUBPROCESS_TIMEOUT", "300"))
 
 
+def _resolve_executable(name: str) -> str:
+    import sys
+    import shutil
+
+    venv_bin = os.path.dirname(sys.executable)
+    local_path = os.path.join(venv_bin, name)
+    if os.path.isfile(local_path) and os.access(local_path, os.X_OK):
+        return local_path
+    resolved = shutil.which(name)
+    if resolved:
+        return resolved
+    return name
+
+
 class BaseEngine(ABC):
     @property
     @abstractmethod
@@ -47,7 +61,7 @@ class CheckovEngine(BaseEngine):
         with tempfile.TemporaryDirectory() as tmpdir:
             try:
                 cmd = [
-                    "checkov",
+                    _resolve_executable("checkov"),
                     "-d",
                     target,
                     "--output",
@@ -104,9 +118,22 @@ class SemgrepEngine(BaseEngine):
         if not rules_path:
             raise ValueError("semgrep requires 'rules_path' in options")
         try:
-            cmd = ["semgrep", "scan", "--config", rules_path, "--sarif", target]
+            cmd = [
+                _resolve_executable("semgrep"),
+                "scan",
+                "--config",
+                rules_path,
+                "--sarif",
+                target,
+            ]
+            env = os.environ.copy()
+            env["SEMGREP_SEND_METRICS"] = "off"
+            env["SEMGREP_DISABLE_VERSION_CHECK"] = "true"
             proc = await asyncio.create_subprocess_exec(
-                *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                env=env,
             )
             try:
                 stdout, stderr = await asyncio.wait_for(
@@ -221,3 +248,98 @@ def run_semgrep(target_dir: str, rules_path: str) -> dict:
 
 def read_codeql_sarif(sarif_dir: str) -> dict:
     return CodeQLEngine().run_scan(sarif_dir, {})
+
+
+class ASTEngine(BaseEngine):
+    @property
+    def name(self) -> str:
+        return "ast"
+
+    def run_scan(self, target: str, options: dict) -> dict:
+        rules_dir = options.get("rules_dir", "ast-rules")
+        return self._run_ast_rules_sync(target, rules_dir)
+
+    async def run_scan_async(self, target: str, options: dict) -> dict:
+        rules_dir = options.get("rules_dir", "ast-rules")
+        return self._run_ast_rules_sync(target, rules_dir)
+
+    def _run_ast_rules_sync(self, target_dir: str, rules_dir: str) -> dict:
+        import importlib.util
+        import sys
+        import ast
+
+        if not os.path.exists(rules_dir):
+            return {"runs": []}
+
+        rule_files = glob.glob(os.path.join(rules_dir, "*.py"))
+        rules = []
+        for rf in rule_files:
+            try:
+                name = os.path.basename(rf)[:-3]
+                spec = importlib.util.spec_from_file_location(name, rf)
+                if spec and spec.loader:
+                    module = importlib.util.module_from_spec(spec)
+                    # Add to sys.modules to prevent reload/import issues
+                    sys.modules[name] = module
+                    spec.loader.exec_module(module)
+                    if hasattr(module, "RULE_ID") and hasattr(module, "detect"):
+                        rules.append(module)
+            except Exception as exc:
+                log.warning(f"Failed to load AST rule from {rf}: {exc}")
+
+        if not rules:
+            return {"runs": []}
+
+        tool_rules = []
+        for r in rules:
+            tool_rules.append(
+                {
+                    "id": getattr(r, "RULE_ID", "AST-UNKNOWN"),
+                    "shortDescription": {"text": getattr(r, "DESCRIPTION", "")},
+                    "properties": {"confidence": getattr(r, "CONFIDENCE", "HIGH")},
+                }
+            )
+
+        all_results = []
+        # Walk target_dir recursively
+        for root, dirs, files in os.walk(target_dir):
+            dirs[:] = [
+                d
+                for d in dirs
+                if not d.startswith(".")
+                and d not in ("venv", ".venv", "node_modules", "build", "dist")
+            ]
+            for file in files:
+                if file.endswith(".py"):
+                    file_path = os.path.join(root, file)
+                    try:
+                        with open(
+                            file_path, "r", encoding="utf-8", errors="ignore"
+                        ) as fh:
+                            source_text = fh.read()
+                        tree = ast.parse(source_text, filename=file_path)
+                        for r in rules:
+                            try:
+                                results = r.detect(tree, source_text, file_path)
+                                for res in results:
+                                    # Normalize uri to target_dir relative path or absolute path
+                                    all_results.append(res)
+                            except Exception as exc:
+                                log.warning(
+                                    f"Error executing AST rule {getattr(r, 'RULE_ID', 'AST-UNKNOWN')} on {file_path}: {exc}"
+                                )
+                    except Exception as exc:
+                        log.debug(f"Failed to parse AST for {file_path}: {exc}")
+
+        return {
+            "runs": [
+                {
+                    "tool": {"driver": {"name": "ast-engine", "rules": tool_rules}},
+                    "results": all_results,
+                }
+            ]
+        }
+
+
+def run_ast_rules(target_dir: str, rules_dir: str) -> dict:
+    return ASTEngine().run_scan(target_dir, {"rules_dir": rules_dir})

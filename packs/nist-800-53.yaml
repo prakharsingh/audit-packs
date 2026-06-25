@@ -18,6 +18,7 @@ controls:
     checks:
       - { engine: checkov, ids: [CKV_AWS_2, CKV_AWS_86, CKV_AWS_68] }
       - { engine: semgrep, ids: [no-tls-verify, ssl-verify-disabled, tls-enabled-false] }
+      - { engine: ast, ids: [AST-004] }
 
   - id: SC-12
     title: Cryptographic Key Establishment and Management
@@ -41,6 +42,7 @@ controls:
       - { engine: dataflow-agent, ids: [DFA-001] }
       - { engine: gdpr-agent, ids: [GDPR-001] }
       - { engine: hipaa-agent, ids: [HIPAA-001] }
+      - { engine: ast, ids: [AST-001] }
 
   # ── AC: Access Control ────────────────────────────────────────────────────
 
@@ -54,6 +56,7 @@ controls:
     checks:
       - { engine: checkov, ids: [CKV_AWS_53, CKV_AWS_54, CKV_AWS_55, CKV_AWS_56, CKV_AWS_62] }
       - { engine: hipaa-agent, ids: [HIPAA-002] }
+      - { engine: ast, ids: [AST-002] }
 
   - id: AC-6
     title: Least Privilege
@@ -94,6 +97,7 @@ controls:
       - { engine: semgrep, ids: [missing-audit-log] }
       - { engine: gdpr-agent, ids: [GDPR-002] }
       - { engine: soc2-agent, ids: [SOC2-001] }
+      - { engine: ast, ids: [AST-003] }
 
   - id: AU-9
     title: Protection of Audit Information
