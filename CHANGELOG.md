@@ -1,6 +1,53 @@
 # CHANGELOG
 
 
+## v0.2.0 (2026-06-25)
+
+### Bug Fixes
+
+- Resolve 6 review findings in ASTEngine, normalize, and cli
+  ([`2fda38e`](https://github.com/prakharsingh/audit-packs/commit/2fda38e19192842b032055ed204a00f36ef2f6ed))
+
+- normalize.py: extract _normalize_rule_id() helper and use it in both sarif_to_findings and
+  extract_rule_confidences (with new engine param) so confidence dict keys always match
+  Finding.check_id — fixes silent 0.6 fallback for all non-semgrep dotted ruleIds - engines.py: add
+  sys.modules cache check in _run_ast_rules_sync to avoid re-exec'ing rule files on every call; move
+  del sys.modules on exec_module failure so broken modules are not left cached - engines.py: replace
+  asyncio.get_event_loop() with get_running_loop() in CodeQLEngine and ASTEngine (deprecated 3.10+,
+  broken in 3.12) - engines.py: add "env" to os.walk exclusion list to prevent scanning python -m
+  venv env virtualenvs - cli.py: resolve ast_rules_dir relative to repo_dir at the top of analyze()
+  and assess() so direct callers get correct path regardless of process CWD; pass engine name to
+  extract_rule_confidences() calls - CLAUDE.md: document ASTEngine as the sole sanctioned in-process
+  engine exception to the "never re-implement detection logic" rule
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+
+- Resolve 8 bugs in ASTEngine, async gather, test isolation, and path handling
+  ([`fbed178`](https://github.com/prakharsingh/audit-packs/commit/fbed1782f368b0e438b805d481c29059da3af796))
+
+- engines.py: namespace rule modules as audit_packs.ast_rules.<name> to prevent clobbering stdlib
+  modules (ast, os, re, etc.) if a rule file shares a name - engines.py: run
+  ASTEngine._run_ast_rules_sync via run_in_executor so it no longer blocks the event loop during
+  filesystem walk and AST parsing - cli.py: include ast_task inside asyncio.gather in analyze() so
+  exceptions are handled uniformly and don't trigger redundant re-runs of checkov/semgrep - cli.py:
+  join relative ast_rules_dir to workspace in main() so it resolves correctly when CWD differs from
+  GITHUB_WORKSPACE - test_ast_rules.py: guard _load_rule() against None spec/spec.loader so a
+  missing rule file raises ImportError rather than crashing all test collection - test_live_llm.py:
+  replace shutil.rmtree('.audit-cache') with isolated_cache fixture that patches
+  adjudicate._CACHE_DIR to tmp_path per test - test_live_llm.py: wrap test bodies in try/finally to
+  reset server_fail_verifier, eliminating ordering-sensitive global state - test_live_llm.py: bind
+  MockLLMServer to port 0 and read assigned port from server_address[1], eliminating TOCTOU race in
+  get_free_port() - test_live_llm.py: skip if openai package not installed -
+  test_e2e_integration.py: skip if checkov or semgrep not on PATH
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+
+### Features
+
+- Implement Option A AST rules engine and Option C live LLM test coverage
+  ([`407009b`](https://github.com/prakharsingh/audit-packs/commit/407009bb5ccf589dbba7bbc70d7fe4c8e69a03ba))
+
+
 ## v0.1.1 (2026-06-25)
 
 ### Bug Fixes
