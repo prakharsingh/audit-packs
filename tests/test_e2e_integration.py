@@ -1,5 +1,6 @@
 import os
 import pathlib
+import shutil
 import subprocess
 import tempfile
 from unittest.mock import patch, MagicMock
@@ -17,8 +18,10 @@ def _run_git(cmd, cwd):
 
 
 @pytest.mark.skipif(
-    subprocess.run(["git", "--version"], capture_output=True).returncode != 0,
-    reason="git not installed — skipping e2e test",
+    subprocess.run(["git", "--version"], capture_output=True).returncode != 0
+    or shutil.which("checkov") is None
+    or shutil.which("semgrep") is None,
+    reason="git, checkov, or semgrep not on PATH — skipping e2e test",
 )
 def test_e2e_integration_forked_repo_scan_and_pr_review():
     """Perform a full E2E integration test simulating PR review and code scan on a forked repository."""

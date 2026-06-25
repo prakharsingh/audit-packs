@@ -11,6 +11,8 @@ ROOT = pathlib.Path(__file__).parent.parent
 def _load_rule(name):
     path = str(ROOT / "ast-rules" / f"{name}.py")
     spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Cannot load AST rule: {path}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module

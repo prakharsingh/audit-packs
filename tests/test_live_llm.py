@@ -1,9 +1,9 @@
 import http.server
+import importlib.util
 import socketserver
 import threading
 import json
-import os
-import shutil
+from unittest.mock import patch
 import pytest
 from audit_packs.models import (
     Finding,
@@ -15,15 +15,10 @@ from audit_packs.evidence import PRContext
 from audit_packs.adjudicate import adjudicate
 
 
-def get_free_port():
-    import socket
-
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(("127.0.0.1", 0))
-    port = s.getsockname()[1]
-    s.close()
-    return port
-
+pytestmark = pytest.mark.skipif(
+    importlib.util.find_spec("openai") is None,
+    reason="openai package not installed — skipping live LLM tests",
+)
 
 # Global variable to configure mock server behavior dynamically
 server_fail_verifier = False
@@ -92,8 +87,9 @@ class MockLLMHandler(http.server.BaseHTTPRequestHandler):
 
 class MockLLMServer:
     def __init__(self):
-        self.port = get_free_port()
-        self.server = socketserver.TCPServer(("127.0.0.1", self.port), MockLLMHandler)
+        # Bind to port 0 so the OS assigns a free port atomically, avoiding TOCTOU race
+        self.server = socketserver.TCPServer(("127.0.0.1", 0), MockLLMHandler)
+        self.port = self.server.server_address[1]
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
 
     def start(self):
@@ -112,7 +108,14 @@ def mock_server():
     server.stop()
 
 
-def test_live_llm_debate_and_caching(mock_server):
+@pytest.fixture()
+def isolated_cache(tmp_path):
+    """Redirect adjudicate's cache to a temporary directory for test isolation."""
+    with patch("audit_packs.adjudicate._CACHE_DIR", str(tmp_path)):
+        yield tmp_path
+
+
+def test_live_llm_debate_and_caching(mock_server, isolated_cache):
     global server_fail_verifier
     server_fail_verifier = False
 
@@ -145,10 +148,6 @@ def test_live_llm_debate_and_caching(mock_server):
         },
     }
 
-    # Ensure cache is clean
-    if os.path.exists(".audit-cache"):
-        shutil.rmtree(".audit-cache")
-
     finding = Finding(
         "CKV_AWS_19",
         "checkov",
@@ -173,12 +172,17 @@ def test_live_llm_debate_and_caching(mock_server):
     # 3. Test Cache Hit: shutdown / make server fail verifier, and run again.
     # It must return cached result successfully without hitting mock server.
     server_fail_verifier = True
-    result_cached = adjudicate(cf, pr_context, AdjudicationMode.ENFORCE, model_config)
-    assert result_cached.model_consensus == 0.78
-    assert "Mock verifier" in result_cached.verifier_argument
+    try:
+        result_cached = adjudicate(
+            cf, pr_context, AdjudicationMode.ENFORCE, model_config
+        )
+        assert result_cached.model_consensus == 0.78
+        assert "Mock verifier" in result_cached.verifier_argument
+    finally:
+        server_fail_verifier = False
 
 
-def test_live_llm_fallback_on_role_failure(mock_server):
+def test_live_llm_fallback_on_role_failure(mock_server, isolated_cache):
     global server_fail_verifier
     # Enable verifier failure
     server_fail_verifier = True
@@ -220,10 +224,15 @@ def test_live_llm_fallback_on_role_failure(mock_server):
 
     # Run adjudication. Since verifier fails (500), verifier_argument will be empty,
     # but the judge should still proceed and output judge_score.
-    result = adjudicate(cf, pr_context, AdjudicationMode.ENFORCE, model_config)
-    assert isinstance(result, AdjudicationResult)
-    assert result.detector_score == 0.85
-    assert result.verifier_argument == ""  # verifier failed
-    assert "Mock adversarial" in result.adversarial_argument  # adversarial succeeded
-    assert result.judge_score == 0.78
-    assert result.model_consensus == 0.78
+    try:
+        result = adjudicate(cf, pr_context, AdjudicationMode.ENFORCE, model_config)
+        assert isinstance(result, AdjudicationResult)
+        assert result.detector_score == 0.85
+        assert result.verifier_argument == ""  # verifier failed
+        assert (
+            "Mock adversarial" in result.adversarial_argument
+        )  # adversarial succeeded
+        assert result.judge_score == 0.78
+        assert result.model_consensus == 0.78
+    finally:
+        server_fail_verifier = False

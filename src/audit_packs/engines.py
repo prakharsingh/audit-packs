@@ -261,7 +261,10 @@ class ASTEngine(BaseEngine):
 
     async def run_scan_async(self, target: str, options: dict) -> dict:
         rules_dir = options.get("rules_dir", "ast-rules")
-        return self._run_ast_rules_sync(target, rules_dir)
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            None, self._run_ast_rules_sync, target, rules_dir
+        )
 
     def _run_ast_rules_sync(self, target_dir: str, rules_dir: str) -> dict:
         import importlib.util
@@ -276,11 +279,12 @@ class ASTEngine(BaseEngine):
         for rf in rule_files:
             try:
                 name = os.path.basename(rf)[:-3]
-                spec = importlib.util.spec_from_file_location(name, rf)
+                # Use a namespaced key to avoid clobbering stdlib modules (e.g. ast, os, re)
+                module_key = f"audit_packs.ast_rules.{name}"
+                spec = importlib.util.spec_from_file_location(module_key, rf)
                 if spec and spec.loader:
                     module = importlib.util.module_from_spec(spec)
-                    # Add to sys.modules to prevent reload/import issues
-                    sys.modules[name] = module
+                    sys.modules[module_key] = module
                     spec.loader.exec_module(module)
                     if hasattr(module, "RULE_ID") and hasattr(module, "detect"):
                         rules.append(module)

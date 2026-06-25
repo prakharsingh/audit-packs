@@ -145,9 +145,12 @@ def analyze(
             ASTEngine().run_scan_async(repo_dir, {"rules_dir": ast_rules_dir})
         )
 
-        c_sarif, s_sarif = await asyncio.gather(checkov_task, semgrep_task)
-        q_sarif = await codeql_task if codeql_task else {"runs": []}
-        a_sarif = await ast_task
+        tasks = [checkov_task, semgrep_task, ast_task]
+        if codeql_task:
+            tasks.append(codeql_task)
+        results = await asyncio.gather(*tasks)
+        c_sarif, s_sarif, a_sarif = results[0], results[1], results[2]
+        q_sarif = results[3] if codeql_task else {"runs": []}
         return c_sarif, s_sarif, q_sarif, a_sarif
 
     try:
@@ -536,6 +539,8 @@ def main() -> int:
 
     codeql_sarif_dir = os.environ.get("CODEQL_SARIF_DIR", "")
     ast_rules_dir = os.environ.get("AST_RULES_DIR", "ast-rules")
+    if not os.path.isabs(ast_rules_dir):
+        ast_rules_dir = os.path.join(workspace, ast_rules_dir)
 
     # Historical precision
     precision_path = os.path.join(".audit-cache", "precision.json")
