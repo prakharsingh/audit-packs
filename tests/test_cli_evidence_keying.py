@@ -30,8 +30,8 @@ _ADJ_RESULT = AdjudicationResult(
     control_finding=_CF,
     detector_score=0.9,
     verifier_argument="",
-    adversarial_argument="",
-    judge_score=0.9,
+    challenger_argument="",
+    consensus_score=0.9,
     model_consensus=0.9,
     rationale="",
 )
@@ -66,16 +66,17 @@ def test_evidence_confidence_is_not_always_default():
         ]
     }
 
-    with patch("asyncio.run", side_effect=RuntimeError("force sync")), patch(
-        "audit_packs.cli.run_checkov", return_value=mock_sarif
-    ), patch("audit_packs.cli.run_semgrep", return_value={"runs": []}), patch(
-        "audit_packs.cli.run_git_diff", return_value=""
-    ), patch("audit_packs.agents.build_agents", return_value=[]), patch(
-        "audit_packs.evidence.enrich", side_effect=lambda f, txt, ctx: f
-    ), patch(
-        "audit_packs.evidence.evidence_confidence", return_value=0.99
-    ) as mock_ev_conf, patch(
-        "audit_packs.adjudicate.adjudicate", return_value=_ADJ_RESULT
+    with (
+        patch("asyncio.run", side_effect=RuntimeError("force sync")),
+        patch("audit_packs.cli.run_checkov", return_value=mock_sarif),
+        patch("audit_packs.cli.run_semgrep", return_value={"runs": []}),
+        patch("audit_packs.cli.run_git_diff", return_value=""),
+        patch("audit_packs.agents.build_agents", return_value=[]),
+        patch("audit_packs.evidence.enrich", side_effect=lambda f, txt, ctx: f),
+        patch(
+            "audit_packs.evidence.evidence_confidence", return_value=0.99
+        ) as mock_ev_conf,
+        patch("audit_packs.adjudicate.adjudicate", return_value=_ADJ_RESULT),
     ):
         scored = analyze(
             str(ROOT / "tests/fixtures/terraform"),

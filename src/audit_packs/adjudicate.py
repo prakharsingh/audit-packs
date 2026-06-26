@@ -37,13 +37,13 @@ _ROLE_DEFAULTS: dict[str, dict] = {
         "base_url": None,
         "api_key_env": "ANTHROPIC_API_KEY",
     },
-    "adversarial": {
+    "challenger": {
         "provider": "google",
         "model": "gemini-1.5-pro",
         "base_url": None,
         "api_key_env": "GOOGLE_API_KEY",
     },
-    "judge": {
+    "consensus": {
         "provider": "openai",
         "model": "gpt-4o",
         "base_url": None,
@@ -260,8 +260,8 @@ def _load_cache(cf: ControlFinding) -> AdjudicationResult | None:
             control_finding=cf,
             detector_score=data["detector_score"],
             verifier_argument=data["verifier_argument"],
-            adversarial_argument=data["adversarial_argument"],
-            judge_score=data["judge_score"],
+            challenger_argument=data["challenger_argument"],
+            consensus_score=data["consensus_score"],
             model_consensus=data["model_consensus"],
             rationale=data["rationale"],
         )
@@ -280,8 +280,8 @@ def _save_cache(cf: ControlFinding, result: AdjudicationResult) -> None:
                 {
                     "detector_score": result.detector_score,
                     "verifier_argument": result.verifier_argument,
-                    "adversarial_argument": result.adversarial_argument,
-                    "judge_score": result.judge_score,
+                    "challenger_argument": result.challenger_argument,
+                    "consensus_score": result.consensus_score,
                     "model_consensus": result.model_consensus,
                     "rationale": result.rationale,
                 },
@@ -341,8 +341,8 @@ def adjudicate(
             control_finding=cf,
             detector_score=1.0,
             verifier_argument="",
-            adversarial_argument="",
-            judge_score=1.0,
+            challenger_argument="",
+            consensus_score=1.0,
             model_consensus=1.0,
             rationale="adjudication disabled",
         )
@@ -371,8 +371,8 @@ def adjudicate(
             control_finding=cf,
             detector_score=0.5,
             verifier_argument="",
-            adversarial_argument="",
-            judge_score=0.5,
+            challenger_argument="",
+            consensus_score=0.5,
             model_consensus=0.5,
             rationale="model_confidence_unavailable",
         )
@@ -383,9 +383,9 @@ def adjudicate(
         + f"\n\nDetector assessment (score {detector_score:.2f}): {detector_assessment}"
     )
 
-    # --- Round 2: Verifier + Adversarial (parallel) ---
+    # --- Round 2: Verifier + Challenger (parallel) ---
     verifier_arg = ""
-    adversarial_arg = ""
+    challenger_arg = ""
 
     def _run_verifier():
         return _call_role(
@@ -395,9 +395,9 @@ def adjudicate(
             round2_ctx,
         )
 
-    def _run_adversarial():
+    def _run_challenger():
         return _call_role(
-            model_config["adversarial"],
+            model_config["challenger"],
             "You are defence counsel. Argue why this finding is a FALSE POSITIVE. "
             'Return JSON: {"argument": "<arg>", "strength": <0.0-1.0>}',
             round2_ctx,
@@ -406,7 +406,7 @@ def adjudicate(
     with ThreadPoolExecutor(max_workers=2) as executor:
         futures = {
             executor.submit(_run_verifier): "verifier",
-            executor.submit(_run_adversarial): "adversarial",
+            executor.submit(_run_challenger): "challenger",
         }
         try:
             for fut in as_completed(futures, timeout=_TIMEOUT):
@@ -416,7 +416,7 @@ def adjudicate(
                     if role == "verifier":
                         verifier_arg = res.get("argument", "")
                     else:
-                        adversarial_arg = res.get("argument", "")
+                        challenger_arg = res.get("argument", "")
                 except Exception as exc:
                     log.warning("adjudicate: %s failed (%s)", role, exc)
         except TimeoutError:
@@ -425,22 +425,22 @@ def adjudicate(
                 _TIMEOUT,
             )
 
-    # --- Round 3: Judge ---
-    judge_score = detector_score
+    # --- Round 3: Consensus ---
+    consensus_score = detector_score
     rationale = "judge fallback: using detector score"
     try:
         judge_ctx = (
             f"Detector score: {detector_score:.2f}\n"
             f"Prosecution (verifier): {verifier_arg or '(unavailable)'}\n"
-            f"Defence (adversarial): {adversarial_arg or '(unavailable)'}\n\n" + ctx
+            f"Defence (challenger): {challenger_arg or '(unavailable)'}\n\n" + ctx
         )
         jud = _call_role(
-            model_config["judge"],
+            model_config["consensus"],
             f"You are a senior {cf.framework} compliance judge. Weigh the evidence and return "
             'a final confidence score. Return JSON: {"confidence": <0.0-1.0>, "rationale": "<one sentence>"}',
             judge_ctx,
         )
-        judge_score = float(jud.get("confidence", detector_score))
+        consensus_score = float(jud.get("confidence", detector_score))
         rationale = jud.get("rationale", "")
     except Exception as exc:
         log.warning("adjudicate: judge failed (%s); using detector score", exc)
@@ -449,9 +449,9 @@ def adjudicate(
         control_finding=cf,
         detector_score=detector_score,
         verifier_argument=verifier_arg,
-        adversarial_argument=adversarial_arg,
-        judge_score=judge_score,
-        model_consensus=judge_score,
+        challenger_argument=challenger_arg,
+        consensus_score=consensus_score,
+        model_consensus=consensus_score,
         rationale=rationale,
     )
     _save_cache(cf, result)

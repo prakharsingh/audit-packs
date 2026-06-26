@@ -15,16 +15,16 @@ from audit_packs.confidence import (
 )
 
 
-def _result(judge_score=0.8):
+def _result(consensus_score=0.8):
     f = Finding("CKV_AWS_19", "checkov", "main.tf", 5, "high", "msg", "snippet")
     cf = ControlFinding(f, "gdpr", "SC-28", "Protection at Rest")
     return AdjudicationResult(
         control_finding=cf,
-        detector_score=judge_score,
+        detector_score=consensus_score,
         verifier_argument="real violation",
-        adversarial_argument="test infra",
-        judge_score=judge_score,
-        model_consensus=judge_score,
+        challenger_argument="test infra",
+        consensus_score=consensus_score,
+        model_consensus=consensus_score,
         rationale="Evidence is clear.",
     )
 
@@ -47,7 +47,7 @@ def test_default_weights_sum_to_1():
 
 
 def test_score_finding_weighted_sum():
-    result = _result(judge_score=0.8)
+    result = _result(consensus_score=0.8)
     comps = _components(
         rule_confidence=1.0,
         evidence_confidence=1.0,
@@ -61,7 +61,7 @@ def test_score_finding_weighted_sum():
 
 
 def test_score_finding_zero_when_all_zeros():
-    result = _result(judge_score=0.0)
+    result = _result(consensus_score=0.0)
     comps = _components(
         rule_confidence=0.0,
         evidence_confidence=0.0,
@@ -75,7 +75,7 @@ def test_score_finding_zero_when_all_zeros():
 
 
 def test_apply_gate_enforce_suppresses_below_threshold():
-    result = _result(judge_score=0.4)
+    result = _result(consensus_score=0.4)
     comps = _components(
         model_consensus=0.4,
         rule_confidence=0.3,
@@ -94,7 +94,7 @@ def test_apply_gate_enforce_suppresses_below_threshold():
 
 
 def test_apply_gate_enforce_surfaces_above_threshold():
-    result = _result(judge_score=0.9)
+    result = _result(consensus_score=0.9)
     comps = _components()
     pairs = [(result, comps)]
     scored = apply_confidence_gate(
@@ -105,7 +105,7 @@ def test_apply_gate_enforce_surfaces_above_threshold():
 
 
 def test_apply_gate_advisory_surfaces_all():
-    result = _result(judge_score=0.1)
+    result = _result(consensus_score=0.1)
     comps = _components(
         model_consensus=0.1,
         rule_confidence=0.1,
@@ -122,7 +122,7 @@ def test_apply_gate_advisory_surfaces_all():
 
 
 def test_apply_gate_off_surfaces_all_regardless_of_score():
-    result = _result(judge_score=0.0)
+    result = _result(consensus_score=0.0)
     comps = _components(
         model_consensus=0.0,
         rule_confidence=0.0,

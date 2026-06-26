@@ -59,8 +59,8 @@ class AdjudicationResult:
     control_finding: ControlFinding
     detector_score: float
     verifier_argument: str
-    adversarial_argument: str
-    judge_score: float
+    challenger_argument: str
+    consensus_score: float
     model_consensus: float
     rationale: str
 

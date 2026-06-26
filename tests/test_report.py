@@ -38,7 +38,7 @@ def _cs(ctrl_id, status, framework="soc2", findings=()):
 
 def _scored_finding(
     surfaced=True,
-    judge_score=0.87,
+    consensus_score=0.87,
     framework="gdpr",
     control_id="Art-32-a",
     control_title="Pseudonymisation and Encryption",
@@ -59,17 +59,17 @@ def _scored_finding(
     cf = ControlFinding(f, framework, control_id, control_title)
     result = AdjudicationResult(
         control_finding=cf,
-        detector_score=judge_score,
+        detector_score=consensus_score,
         verifier_argument="Data stored without encryption",
-        adversarial_argument="This could be a test bucket",
-        judge_score=judge_score,
-        model_consensus=judge_score,
+        challenger_argument="This could be a test bucket",
+        consensus_score=consensus_score,
+        model_consensus=consensus_score,
         rationale="Storing data at rest without encryption violates GDPR Art. 32(a).",
     )
     comps = ScoreComponents(
         rule_confidence=0.9,
         evidence_confidence=0.8,
-        model_consensus=judge_score,
+        model_consensus=consensus_score,
         historical_precision=0.78,
         control_severity=0.8,
         flow_confidence=0.9,
@@ -312,7 +312,7 @@ def test_build_comments_includes_framework_and_control():
 
 
 def test_build_comments_includes_score_percentage():
-    scored = [_scored_finding(judge_score=0.87)]
+    scored = [_scored_finding(consensus_score=0.87)]
     comments = build_comments(scored, "abc123")
     body = comments[0]["body"]
     assert "%" in body

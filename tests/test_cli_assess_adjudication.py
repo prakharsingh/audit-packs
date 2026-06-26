@@ -33,8 +33,8 @@ _ADJ_RESULT = AdjudicationResult(
     control_finding=_CF,
     detector_score=0.9,
     verifier_argument="",
-    adversarial_argument="",
-    judge_score=0.9,
+    challenger_argument="",
+    consensus_score=0.9,
     model_consensus=0.9,
     rationale="",
 )
