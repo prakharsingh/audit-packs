@@ -9,40 +9,6 @@ def load_pack(path: str) -> dict:
     framework_key = data.get("framework") or data.get("id")
     if not framework_key or "controls" not in data:
         raise ValueError(f"pack {path} missing required keys 'framework'/'controls'")
-
-    if framework_key == "nist-800-53":
-        packs_dir = os.path.dirname(os.path.dirname(path))
-        org_policy_path = os.path.join(packs_dir, "org-policy", "controls.yaml")
-        if os.path.exists(org_policy_path):
-            try:
-                with open(org_policy_path) as op_fh:
-                    op_data = yaml.safe_load(op_fh) or {}
-                for rule in op_data.get("custom_rules", []):
-                    rule_id = rule.get("id")
-                    maps_to = rule.get("maps_to", [])
-                    if not rule_id or not maps_to:
-                        continue
-                    for nist_ctrl in maps_to:
-                        for control in data.get("controls", []):
-                            if control.get("id") != nist_ctrl:
-                                continue
-                            mappings = control.setdefault("mappings", [])
-                            existing = [
-                                m["check_id"]
-                                for m in mappings
-                                if m.get("engine") == "org-policy-agent"
-                            ]
-                            if rule_id not in existing:
-                                mappings.append(
-                                    {"engine": "org-policy-agent", "check_id": rule_id}
-                                )
-            except Exception as exc:
-                import sys
-
-                print(
-                    f"Warning: Failed to load org-policy/controls.yaml: {exc}",
-                    file=sys.stderr,
-                )
     return data
 
 
