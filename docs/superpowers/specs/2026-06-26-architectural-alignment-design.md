@@ -15,7 +15,7 @@ The existing codebase is a single flat Python package (`src/audit_packs/`) conta
 - README positions the project as a compliance mapper rather than a Compliance Intelligence Engine
 - No explicit scanner support table or scanner-agnostic positioning
 
-This spec closes all four gaps in a single big-bang migration.
+This spec closes all five gaps in a single big-bang migration.
 
 ---
 
@@ -92,18 +92,16 @@ packages/
 ### Dependency graph
 
 ```
-audit-packs-core
-  └── audit-packs-mapping
-        └── audit-packs-evidence
-              └── audit-packs-ai
-                    └── audit-packs-action
-audit-packs-core
-  └── audit-packs-evidence
-audit-packs-core
-  └── audit-packs-ai
+audit-packs-core  ◄─── audit-packs-mapping  ◄─┐
+audit-packs-core  ◄─── audit-packs-evidence ◄─┤
+audit-packs-core  ◄─┐                          │
+audit-packs-mapping ◄┤── audit-packs-ai    ◄───┤
+audit-packs-evidence◄┘                         │
+                       audit-packs-action ──────┘
+                         (depends on all 4 above)
 ```
 
-No cycles. The dependency arrow always points toward `action`.
+No cycles. `core` has no upstream dependencies. `action` depends on everything.
 
 ### Per-package `pyproject.toml` dependencies
 
@@ -245,20 +243,19 @@ class ControlFinding:
 ### `audit-models.yaml` — role keys
 
 ```yaml
-# after
-roles:
-  detector:
-    provider: anthropic
-    model: claude-sonnet-4-6
-  verifier:
-    provider: anthropic
-    model: claude-sonnet-4-6
-  challenger:
-    provider: anthropic
-    model: claude-sonnet-4-6
-  consensus:
-    provider: openai
-    model: gpt-4o
+# after (flat top-level keys, same structure as before)
+detector:
+  provider: anthropic
+  model: claude-sonnet-4-6
+verifier:
+  provider: anthropic
+  model: claude-sonnet-4-6
+challenger:
+  provider: anthropic
+  model: claude-sonnet-4-6
+consensus:
+  provider: openai
+  model: gpt-4o
 ```
 
 ### Cache migration
