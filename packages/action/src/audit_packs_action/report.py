@@ -2,7 +2,7 @@ import html
 import json
 import os
 import requests
-from audit_packs.models import (
+from audit_packs_core.models import (
     ControlFinding,
     ControlStatus,
     AssessmentStatus,

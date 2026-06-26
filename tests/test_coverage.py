@@ -1,8 +1,8 @@
 """Tests for coverage.py — compute_coverage() pure logic."""
 
 import pathlib
-from audit_packs.models import Finding, ControlFinding, AssessmentStatus
-from audit_packs.coverage import compute_coverage
+from audit_packs_core.models import Finding, ControlFinding, AssessmentStatus
+from audit_packs_mapping.coverage import compute_coverage
 
 PACKS = str(pathlib.Path(__file__).parent.parent / "packs")
 

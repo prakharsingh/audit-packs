@@ -1,4 +1,4 @@
-from audit_packs.models import Finding, PathNode
+from audit_packs_core.models import Finding, PathNode
 
 _LEVEL_TO_SEVERITY = {
     "error": "high",

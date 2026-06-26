@@ -1,6 +1,6 @@
 import os
 import yaml
-from audit_packs.models import Finding, ControlFinding
+from audit_packs_core.models import Finding, ControlFinding
 
 
 def load_pack(path: str) -> dict:

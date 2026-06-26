@@ -17,21 +17,21 @@ import os
 import sys
 from dataclasses import replace
 
-from audit_packs.adjudicate import AdjudicationMode
-from audit_packs.models import SEVERITIES
-from audit_packs.engines import (
+from audit_packs_ai.adjudicate import AdjudicationMode
+from audit_packs_core.models import SEVERITIES
+from audit_packs_action.engines import (
     run_checkov,
     run_semgrep,
     run_git_diff,
     read_codeql_sarif,
     run_ast_rules,
 )
-from audit_packs.normalize import sarif_to_findings
-from audit_packs.diff import parse_unified_diff
-from audit_packs.packs import map_findings
-from audit_packs.coverage import compute_coverage
-from audit_packs.oscal import to_assessment_results
-from audit_packs.report import (
+from audit_packs_core.normalize import sarif_to_findings
+from audit_packs_core.diff import parse_unified_diff
+from audit_packs_mapping.packs import map_findings
+from audit_packs_mapping.coverage import compute_coverage
+from audit_packs_mapping.oscal import to_assessment_results
+from audit_packs_action.report import (
     build_coverage_matrix,
     build_sarif,
     gate_failed,
@@ -101,32 +101,32 @@ def analyze(
     """Run engines, enrich, adjudicate, score, and return ScoredFindings for diff-changed lines."""
     if ast_rules_dir and not os.path.isabs(ast_rules_dir):
         ast_rules_dir = os.path.join(repo_dir, ast_rules_dir)
-    from audit_packs.evidence import enrich, evidence_confidence
-    from audit_packs.dataflow import extract_data_flows, flow_confidence
-    from audit_packs.confidence import (
+    from audit_packs_evidence.evidence import enrich, evidence_confidence
+    from audit_packs_core.dataflow import extract_data_flows, flow_confidence
+    from audit_packs_ai.confidence import (
         ScoreComponents,
         apply_confidence_gate,
         get_historical_precision,
         control_severity_score,
     )
-    from audit_packs.adjudicate import adjudicate as adj_finding
-    from audit_packs.normalize import extract_rule_confidences
+    from audit_packs_ai.adjudicate import adjudicate as adj_finding
+    from audit_packs_core.normalize import extract_rule_confidences
 
     if model_config is None:
-        from audit_packs.adjudicate import load_model_config
+        from audit_packs_ai.adjudicate import load_model_config
 
         model_config = load_model_config()
     if precision_data is None:
         precision_data = {}
     if weights is None:
-        from audit_packs.confidence import DEFAULT_WEIGHTS
+        from audit_packs_ai.confidence import DEFAULT_WEIGHTS
 
         weights = DEFAULT_WEIGHTS
 
     # Run detection engines in parallel using async engines
     async def _run_scans_parallel():
         import asyncio
-        from audit_packs.engines import (
+        from audit_packs_action.engines import (
             CheckovEngine,
             SemgrepEngine,
             CodeQLEngine,
@@ -170,7 +170,7 @@ def analyze(
         ast_sarif = run_ast_rules(repo_dir, ast_rules_dir)
 
     # Run all registered detection agents for Phase 2
-    from audit_packs.agents import build_agents
+    from audit_packs_evidence.agents import build_agents
 
     agents = build_agents(frameworks, packs_dir)
     changed_file_texts = {}
@@ -305,32 +305,32 @@ def assess(
     """
     if ast_rules_dir and not os.path.isabs(ast_rules_dir):
         ast_rules_dir = os.path.join(repo_dir, ast_rules_dir)
-    from audit_packs.confidence import (
+    from audit_packs_ai.confidence import (
         ScoreComponents,
         apply_confidence_gate,
         get_historical_precision,
         control_severity_score,
     )
-    from audit_packs.adjudicate import adjudicate as adj_finding
-    from audit_packs.normalize import extract_rule_confidences
-    from audit_packs.dataflow import extract_data_flows, flow_confidence
-    from audit_packs.evidence import extract_doc_context, evidence_confidence
+    from audit_packs_ai.adjudicate import adjudicate as adj_finding
+    from audit_packs_core.normalize import extract_rule_confidences
+    from audit_packs_core.dataflow import extract_data_flows, flow_confidence
+    from audit_packs_evidence.evidence import extract_doc_context, evidence_confidence
 
     if model_config is None:
-        from audit_packs.adjudicate import load_model_config
+        from audit_packs_ai.adjudicate import load_model_config
 
         model_config = load_model_config()
     if precision_data is None:
         precision_data = {}
     if weights is None:
-        from audit_packs.confidence import DEFAULT_WEIGHTS
+        from audit_packs_ai.confidence import DEFAULT_WEIGHTS
 
         weights = DEFAULT_WEIGHTS
 
     # Run detection engines in parallel using async engines
     async def _run_scans_parallel_assess():
         import asyncio
-        from audit_packs.engines import CheckovEngine, SemgrepEngine, ASTEngine
+        from audit_packs_action.engines import CheckovEngine, SemgrepEngine, ASTEngine
 
         checkov_task = asyncio.create_task(CheckovEngine().run_scan_async(repo_dir, {}))
         semgrep_task = asyncio.create_task(
@@ -366,7 +366,7 @@ def assess(
     rule_confidences.update(extract_rule_confidences(ast_sarif, "ast"))
 
     # Load and run Phase 2 detection agents over the full workspace
-    from audit_packs.agents import build_agents
+    from audit_packs_evidence.agents import build_agents
 
     agents = build_agents(frameworks, packs_dir)
     all_file_texts = _read_all_files(repo_dir)
@@ -463,9 +463,9 @@ def assess(
 
 def main() -> int:
     import json as _json
-    from audit_packs.adjudicate import load_model_config
-    from audit_packs.confidence import DEFAULT_WEIGHTS
-    from audit_packs.report import build_summary_comment
+    from audit_packs_ai.adjudicate import load_model_config
+    from audit_packs_ai.confidence import DEFAULT_WEIGHTS
+    from audit_packs_action.report import build_summary_comment
 
     repo = os.environ["GITHUB_REPOSITORY"]
     token = os.environ["GITHUB_TOKEN"]
@@ -560,7 +560,7 @@ def main() -> int:
 
     audit_confirm = os.environ.get("AUDIT_CONFIRM", "")
     if audit_confirm:
-        from audit_packs.confidence import update_precision
+        from audit_packs_ai.confidence import update_precision
         import tempfile
 
         for pair in audit_confirm.split(","):
@@ -582,7 +582,7 @@ def main() -> int:
     pr_context = None
     if adj_mode is not AdjudicationMode.OFF and pr_number:
         try:
-            from audit_packs.evidence import fetch_pr_context
+            from audit_packs_evidence.evidence import fetch_pr_context
 
             pr_context = fetch_pr_context(repo, pr_number, token)
         except Exception as exc:
@@ -610,7 +610,7 @@ def main() -> int:
             threshold=threshold,
             ast_rules_dir=ast_rules_dir,
         )
-        from audit_packs.report import build_comments, build_summary_comment
+        from audit_packs_action.report import build_comments, build_summary_comment
 
         comments = build_comments(scored, commit_sha)
         summary = build_summary_comment(scored, threshold=threshold, weights=weights)

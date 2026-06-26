@@ -5,8 +5,8 @@ mapped by packs.map_findings) and the pack directory, and returns a
 ControlStatus per control — pass, fail, manual, or not_applicable.
 """
 
-from audit_packs.models import ControlFinding, ControlStatus, AssessmentStatus
-from audit_packs.packs import iter_controls
+from audit_packs_core.models import ControlFinding, ControlStatus, AssessmentStatus
+from audit_packs_mapping.packs import iter_controls
 
 
 def compute_coverage(

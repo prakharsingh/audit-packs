@@ -1,6 +1,6 @@
 import json
 import pathlib
-from audit_packs.normalize import sarif_to_findings
+from audit_packs_core.normalize import sarif_to_findings
 
 FIXTURE = pathlib.Path(__file__).parent / "fixtures/sarif/checkov_sample.json"
 

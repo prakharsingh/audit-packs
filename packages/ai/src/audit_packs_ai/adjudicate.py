@@ -15,8 +15,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import yaml
 
-from audit_packs.models import AdjudicationMode, AdjudicationResult, ControlFinding  # noqa: F401
-from audit_packs.evidence import PRContext
+from audit_packs_core.models import AdjudicationMode, AdjudicationResult, ControlFinding  # noqa: F401
+from audit_packs_evidence.evidence import PRContext
 
 log = logging.getLogger(__name__)
 

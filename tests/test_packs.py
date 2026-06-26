@@ -1,7 +1,7 @@
 import pathlib
 import pytest
-from audit_packs.models import Finding
-from audit_packs.packs import load_pack, map_findings, iter_controls
+from audit_packs_core.models import Finding
+from audit_packs_mapping.packs import load_pack, map_findings, iter_controls
 
 PACKS = str(pathlib.Path(__file__).parent.parent / "packs")
 

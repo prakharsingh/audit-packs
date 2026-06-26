@@ -2,8 +2,8 @@
 
 import pathlib
 from unittest.mock import patch
-from audit_packs.cli import assess
-from audit_packs.models import (
+from audit_packs_action.cli import assess
+from audit_packs_core.models import (
     Finding,
     ControlFinding,
     AdjudicationResult,
@@ -76,22 +76,26 @@ def _patch_engines(codeql_sarif=None):
                 patch("asyncio.run", side_effect=RuntimeError("force sync"))
             )
             stack.enter_context(
-                patch("audit_packs.cli.run_checkov", return_value=_MOCK_SARIF)
+                patch("audit_packs_action.cli.run_checkov", return_value=_MOCK_SARIF)
             )
             stack.enter_context(
-                patch("audit_packs.cli.run_semgrep", return_value={"runs": []})
+                patch("audit_packs_action.cli.run_semgrep", return_value={"runs": []})
             )
             if codeql_sarif is not None:
                 stack.enter_context(
                     patch(
-                        "audit_packs.cli.read_codeql_sarif", return_value=codeql_sarif
+                        "audit_packs_action.cli.read_codeql_sarif",
+                        return_value=codeql_sarif,
                     )
                 )
             stack.enter_context(
-                patch("audit_packs.adjudicate.adjudicate", return_value=_ADJ_RESULT)
+                patch("audit_packs_ai.adjudicate.adjudicate", return_value=_ADJ_RESULT)
             )
             stack.enter_context(
-                patch("audit_packs.evidence.evidence_confidence", return_value=0.88)
+                patch(
+                    "audit_packs_evidence.evidence.evidence_confidence",
+                    return_value=0.88,
+                )
             )
             yield
 
@@ -113,7 +117,7 @@ def test_assess_adjudication_advisory_runs_scoring_branch():
     repo = str(ROOT / "tests/fixtures/terraform")
     with _patch_engines():
         with patch(
-            "audit_packs.adjudicate.adjudicate", return_value=_ADJ_RESULT
+            "audit_packs_ai.adjudicate.adjudicate", return_value=_ADJ_RESULT
         ) as mock_adj:
             statuses = assess(
                 repo, PACKS, RULES, ["nist-800-53"], adj_mode=AdjudicationMode.ADVISORY
@@ -129,7 +133,7 @@ def test_assess_evidence_confidence_not_defaulted():
     captured_pairs = []
 
     original_gate = __import__(
-        "audit_packs.confidence", fromlist=["apply_confidence_gate"]
+        "audit_packs_ai.confidence", fromlist=["apply_confidence_gate"]
     ).apply_confidence_gate
 
     def capturing_gate(pairs, **kwargs):
@@ -138,7 +142,8 @@ def test_assess_evidence_confidence_not_defaulted():
 
     with _patch_engines():
         with patch(
-            "audit_packs.confidence.apply_confidence_gate", side_effect=capturing_gate
+            "audit_packs_ai.confidence.apply_confidence_gate",
+            side_effect=capturing_gate,
         ):
             assess(
                 repo, PACKS, RULES, ["nist-800-53"], adj_mode=AdjudicationMode.ADVISORY
@@ -188,7 +193,7 @@ def test_assess_includes_codeql_findings():
     findings_seen = []
 
     original_map = __import__(
-        "audit_packs.packs", fromlist=["map_findings"]
+        "audit_packs_mapping.packs", fromlist=["map_findings"]
     ).map_findings
 
     def capturing_map(findings, *args, **kwargs):
@@ -196,7 +201,7 @@ def test_assess_includes_codeql_findings():
         return original_map(findings, *args, **kwargs)
 
     with _patch_engines(codeql_sarif=codeql_sarif):
-        with patch("audit_packs.cli.map_findings", side_effect=capturing_map):
+        with patch("audit_packs_action.cli.map_findings", side_effect=capturing_map):
             assess(
                 repo,
                 PACKS,

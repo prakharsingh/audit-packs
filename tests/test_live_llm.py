@@ -5,14 +5,14 @@ import threading
 import json
 from unittest.mock import patch
 import pytest
-from audit_packs.models import (
+from audit_packs_core.models import (
     Finding,
     ControlFinding,
     AdjudicationMode,
     AdjudicationResult,
 )
-from audit_packs.evidence import PRContext
-from audit_packs.adjudicate import adjudicate
+from audit_packs_evidence.evidence import PRContext
+from audit_packs_ai.adjudicate import adjudicate
 
 
 pytestmark = pytest.mark.skipif(
@@ -111,7 +111,7 @@ def mock_server():
 @pytest.fixture()
 def isolated_cache(tmp_path):
     """Redirect adjudicate's cache to a temporary directory for test isolation."""
-    with patch("audit_packs.adjudicate._CACHE_DIR", str(tmp_path)):
+    with patch("audit_packs_ai.adjudicate._CACHE_DIR", str(tmp_path)):
         yield tmp_path
 
 

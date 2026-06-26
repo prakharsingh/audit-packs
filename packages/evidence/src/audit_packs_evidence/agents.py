@@ -28,7 +28,7 @@ class DataFlowAgent(DetectionAgent):
         results = []
         rules = [{"id": "DFA-001", "properties": {"confidence": "HIGH"}}]
 
-        from audit_packs.dataflow import extract_data_flows
+        from audit_packs_core.dataflow import extract_data_flows
 
         for file_path, text in changed_files.items():
             lang = (

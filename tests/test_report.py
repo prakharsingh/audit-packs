@@ -3,8 +3,13 @@ import requests
 import json
 import re
 from unittest.mock import patch, MagicMock
-from audit_packs.models import Finding, ControlFinding, ControlStatus, AssessmentStatus
-from audit_packs.report import (
+from audit_packs_core.models import (
+    Finding,
+    ControlFinding,
+    ControlStatus,
+    AssessmentStatus,
+)
+from audit_packs_action.report import (
     build_comments,
     build_summary_comment,
     gate_failed,
@@ -47,8 +52,8 @@ def _scored_finding(
     engine="checkov",
     message="S3 bucket encryption disabled",
 ):
-    from audit_packs.models import Finding, ControlFinding, AdjudicationResult
-    from audit_packs.confidence import (
+    from audit_packs_core.models import Finding, ControlFinding, AdjudicationResult
+    from audit_packs_ai.confidence import (
         ScoreComponents,
         ScoredFinding,
         DEFAULT_WEIGHTS,
@@ -247,7 +252,9 @@ def test_build_sarif_result_has_location():
 
 def test_post_review_calls_correct_github_url():
     mock_resp = MagicMock()
-    with patch("audit_packs.report.requests.post", return_value=mock_resp) as mock_post:
+    with patch(
+        "audit_packs_action.report.requests.post", return_value=mock_resp
+    ) as mock_post:
         post_review(
             [{"path": "main.tf", "line": 1, "side": "RIGHT", "body": "x"}],
             "Audit summary",
@@ -263,7 +270,9 @@ def test_post_review_calls_correct_github_url():
 
 def test_post_review_sends_bearer_token_and_payload():
     mock_resp = MagicMock()
-    with patch("audit_packs.report.requests.post", return_value=mock_resp) as mock_post:
+    with patch(
+        "audit_packs_action.report.requests.post", return_value=mock_resp
+    ) as mock_post:
         post_review(
             [],
             "summary",
@@ -282,7 +291,7 @@ def test_post_review_sends_bearer_token_and_payload():
 def test_post_review_propagates_http_error():
     mock_resp = MagicMock()
     mock_resp.raise_for_status.side_effect = requests.HTTPError("403 Forbidden")
-    with patch("audit_packs.report.requests.post", return_value=mock_resp):
+    with patch("audit_packs_action.report.requests.post", return_value=mock_resp):
         with pytest.raises(requests.HTTPError):
             post_review([], "s", repo="r/r", pr_number="1", token="t", commit_sha="s")
 
@@ -339,7 +348,7 @@ def test_build_comments_excludes_suppressed():
 
 
 def test_build_summary_comment_contains_framework_row():
-    from audit_packs.confidence import DEFAULT_WEIGHTS
+    from audit_packs_ai.confidence import DEFAULT_WEIGHTS
 
     scored = [
         _scored_finding(framework="gdpr"),
@@ -351,7 +360,7 @@ def test_build_summary_comment_contains_framework_row():
 
 
 def test_build_summary_comment_shows_score_formula():
-    from audit_packs.confidence import DEFAULT_WEIGHTS
+    from audit_packs_ai.confidence import DEFAULT_WEIGHTS
 
     scored = [_scored_finding()]
     summary = build_summary_comment(scored, threshold=0.70, weights=DEFAULT_WEIGHTS)

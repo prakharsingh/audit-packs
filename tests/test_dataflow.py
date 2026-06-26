@@ -1,4 +1,4 @@
-from audit_packs.dataflow import DataFlow, extract_data_flows, flow_confidence
+from audit_packs_core.dataflow import DataFlow, extract_data_flows, flow_confidence
 
 PYTHON_WITH_UNPROTECTED_FLOW = """\\
 def handle_request(request):

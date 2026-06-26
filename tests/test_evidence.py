@@ -1,6 +1,6 @@
 import pytest
-from audit_packs.models import Finding
-from audit_packs.evidence import (
+from audit_packs_core.models import Finding
+from audit_packs_evidence.evidence import (
     PRContext,
     extract_doc_context,
     enrich,

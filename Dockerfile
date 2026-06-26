@@ -9,8 +9,9 @@ RUN pip install --no-cache-dir \
     -e packages/core \
     -e packages/mapping \
     -e packages/evidence \
+    -e packages/ai \
     -e packages/action \
     checkov semgrep \
-    && if [ "$INSTALL_AI" = "true" ]; then pip install --no-cache-dir -e "packages/ai[ai]"; else pip install --no-cache-dir -e packages/ai; fi
+    && if [ "$INSTALL_AI" = "true" ]; then pip install --no-cache-dir -e "packages/ai[ai]"; fi
 ENV PACKS_DIR=/app/packs RULES_PATH=/app/rules
 ENTRYPOINT ["python", "-m", "audit_packs_action.cli"]

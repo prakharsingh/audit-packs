@@ -4,7 +4,7 @@ from dataclasses import dataclass, replace
 
 import requests
 
-from audit_packs.models import Finding
+from audit_packs_core.models import Finding
 
 
 @dataclass(frozen=True)

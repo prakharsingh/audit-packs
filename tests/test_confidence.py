@@ -1,11 +1,11 @@
 import pytest
-from audit_packs.models import (
+from audit_packs_core.models import (
     Finding,
     ControlFinding,
     AdjudicationResult,
     AdjudicationMode,
 )
-from audit_packs.confidence import (
+from audit_packs_ai.confidence import (
     ScoreComponents,
     score_finding,
     apply_confidence_gate,

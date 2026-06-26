@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from audit_packs.models import AdjudicationResult, AdjudicationMode
+from audit_packs_core.models import AdjudicationResult, AdjudicationMode
 
 DEFAULT_WEIGHTS: dict[str, float] = {
     "rule": 0.20,

@@ -2,8 +2,8 @@
 
 import pathlib
 from unittest.mock import patch
-from audit_packs.cli import analyze
-from audit_packs.models import Finding, ControlFinding, AdjudicationResult
+from audit_packs_action.cli import analyze
+from audit_packs_core.models import Finding, ControlFinding, AdjudicationResult
 
 ROOT = pathlib.Path(__file__).parent.parent
 PACKS = str(ROOT / "packs")
@@ -68,15 +68,17 @@ def test_evidence_confidence_is_not_always_default():
 
     with (
         patch("asyncio.run", side_effect=RuntimeError("force sync")),
-        patch("audit_packs.cli.run_checkov", return_value=mock_sarif),
-        patch("audit_packs.cli.run_semgrep", return_value={"runs": []}),
-        patch("audit_packs.cli.run_git_diff", return_value=""),
-        patch("audit_packs.agents.build_agents", return_value=[]),
-        patch("audit_packs.evidence.enrich", side_effect=lambda f, txt, ctx: f),
+        patch("audit_packs_action.cli.run_checkov", return_value=mock_sarif),
+        patch("audit_packs_action.cli.run_semgrep", return_value={"runs": []}),
+        patch("audit_packs_action.cli.run_git_diff", return_value=""),
+        patch("audit_packs_evidence.agents.build_agents", return_value=[]),
         patch(
-            "audit_packs.evidence.evidence_confidence", return_value=0.99
+            "audit_packs_evidence.evidence.enrich", side_effect=lambda f, txt, ctx: f
+        ),
+        patch(
+            "audit_packs_evidence.evidence.evidence_confidence", return_value=0.99
         ) as mock_ev_conf,
-        patch("audit_packs.adjudicate.adjudicate", return_value=_ADJ_RESULT),
+        patch("audit_packs_ai.adjudicate.adjudicate", return_value=_ADJ_RESULT),
     ):
         scored = analyze(
             str(ROOT / "tests/fixtures/terraform"),

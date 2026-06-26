@@ -1,7 +1,7 @@
 import pathlib
 import shutil
 import pytest
-from audit_packs.cli import analyze
+from audit_packs_action.cli import analyze
 
 ROOT = pathlib.Path(__file__).parent.parent
 PACKS = str(ROOT / "packs")

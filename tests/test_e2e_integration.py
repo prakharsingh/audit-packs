@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 from unittest.mock import patch, MagicMock
 import pytest
-from audit_packs.cli import main
+from audit_packs_action.cli import main
 
 ROOT = pathlib.Path(__file__).parent.parent
 
@@ -135,9 +135,12 @@ def check_credentials():
 
         with (
             patch.dict(os.environ, env),
-            patch("audit_packs.evidence.requests.get", side_effect=mock_requests_get),
             patch(
-                "audit_packs.report.requests.post", return_value=mock_post_review
+                "audit_packs_evidence.evidence.requests.get",
+                side_effect=mock_requests_get,
+            ),
+            patch(
+                "audit_packs_action.report.requests.post", return_value=mock_post_review
             ) as mock_post,
         ):
             # 4. Execute the pipeline e2e

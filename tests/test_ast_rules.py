@@ -3,7 +3,7 @@ import tempfile
 import os
 import pathlib
 import importlib.util
-from audit_packs.engines import run_ast_rules
+from audit_packs_action.engines import run_ast_rules
 
 ROOT = pathlib.Path(__file__).parent.parent
 

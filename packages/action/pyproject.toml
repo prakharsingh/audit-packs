@@ -21,12 +21,6 @@ classifiers = [
     "Topic :: Security",
     "Topic :: Software Development :: Quality Assurance",
 ]
-
-[project.urls]
-Homepage = "https://github.com/prakharsingh/audit-packs"
-Repository = "https://github.com/prakharsingh/audit-packs.git"
-"Bug Tracker" = "https://github.com/prakharsingh/audit-packs/issues"
-
 dependencies = [
     "audit-packs-core>=0.1.1",
     "audit-packs-mapping>=0.1.1",
@@ -35,6 +29,11 @@ dependencies = [
     "PyYAML>=6.0",
     "requests>=2.31",
 ]
+
+[project.urls]
+Homepage = "https://github.com/prakharsingh/audit-packs"
+Repository = "https://github.com/prakharsingh/audit-packs.git"
+"Bug Tracker" = "https://github.com/prakharsingh/audit-packs/issues"
 
 [project.scripts]
 audit-packs = "audit_packs_action.cli:main"

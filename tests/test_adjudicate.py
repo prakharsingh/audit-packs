@@ -3,14 +3,14 @@
 import json
 import pytest
 from unittest.mock import MagicMock, patch
-from audit_packs.models import (
+from audit_packs_core.models import (
     Finding,
     ControlFinding,
     AdjudicationMode,
     AdjudicationResult,
 )
-from audit_packs.evidence import PRContext
-from audit_packs.adjudicate import adjudicate, load_model_config, AdjudicationMode  # noqa
+from audit_packs_evidence.evidence import PRContext
+from audit_packs_ai.adjudicate import adjudicate, load_model_config, AdjudicationMode  # noqa
 
 
 def _cf():
@@ -71,7 +71,7 @@ class TestAdjudicateModeOff:
         assert result.model_consensus == 1.0
 
     def test_mode_off_does_not_call_any_llm(self):
-        with patch("audit_packs.adjudicate._call_role") as mock:
+        with patch("audit_packs_ai.adjudicate._call_role") as mock:
             adjudicate(_cf(), None, AdjudicationMode.OFF, _DEFAULT_CONFIG)
             mock.assert_not_called()
 
@@ -118,7 +118,7 @@ class TestAdjudicatePipeline:
                 return {"confidence": 0.75, "rationale": "Evidence supports violation"}
             return {"confidence": 0.5, "rationale": "fallback"}
 
-        with patch("audit_packs.adjudicate._call_role", side_effect=mock_call):
+        with patch("audit_packs_ai.adjudicate._call_role", side_effect=mock_call):
             result = adjudicate(_cf(), _pr(), AdjudicationMode.ENFORCE, _DEFAULT_CONFIG)
 
         assert "detector" in calls
@@ -130,7 +130,7 @@ class TestAdjudicatePipeline:
 
     def test_detector_failure_returns_neutral(self, monkeypatch):
         with patch(
-            "audit_packs.adjudicate._call_role", side_effect=Exception("API down")
+            "audit_packs_ai.adjudicate._call_role", side_effect=Exception("API down")
         ):
             result = adjudicate(_cf(), _pr(), AdjudicationMode.ENFORCE, _DEFAULT_CONFIG)
         assert result.model_consensus == 0.5
@@ -146,7 +146,7 @@ class TestAdjudicatePipeline:
                 return {"argument": "arg", "strength": 0.5}
             raise Exception("Judge down")
 
-        with patch("audit_packs.adjudicate._call_role", side_effect=mock_call):
+        with patch("audit_packs_ai.adjudicate._call_role", side_effect=mock_call):
             result = adjudicate(_cf(), _pr(), AdjudicationMode.ENFORCE, _DEFAULT_CONFIG)
         assert result.model_consensus == pytest.approx(0.82)
 
@@ -210,8 +210,8 @@ class TestCaching:
         ).hexdigest()
         (cache_dir / f"{key}.json").write_text(json.dumps(cached))
 
-        with patch("audit_packs.adjudicate._CACHE_DIR", str(cache_dir)):
-            with patch("audit_packs.adjudicate._call_role") as mock:
+        with patch("audit_packs_ai.adjudicate._CACHE_DIR", str(cache_dir)):
+            with patch("audit_packs_ai.adjudicate._call_role") as mock:
                 result = adjudicate(
                     cf, _pr(), AdjudicationMode.ENFORCE, _DEFAULT_CONFIG
                 )
@@ -228,7 +228,7 @@ def test_call_role_google_handles_markdown_and_sets_mime_type(monkeypatch):
     sys.modules["google"] = mock_google
     sys.modules["google.generativeai"] = mock_genai
 
-    from audit_packs.adjudicate import _call_role
+    from audit_packs_ai.adjudicate import _call_role
 
     role_cfg = {
         "provider": "google",
@@ -256,12 +256,12 @@ def test_call_role_google_handles_markdown_and_sets_mime_type(monkeypatch):
 
 def test_adjudicate_verifier_adversarial_timeout_handling(monkeypatch):
     import time
-    from audit_packs.adjudicate import adjudicate
-    import audit_packs.adjudicate
+    from audit_packs_ai.adjudicate import adjudicate
+    import audit_packs_ai.adjudicate
 
     # Disable cache and set timeout to a very small value to trigger it quickly
     monkeypatch.setenv("AUDIT_CACHE", "off")
-    monkeypatch.setattr(audit_packs.adjudicate, "_TIMEOUT", 0.01, raising=False)
+    monkeypatch.setattr(audit_packs_ai.adjudicate, "_TIMEOUT", 0.01, raising=False)
 
     def mock_call(role_cfg, system_prompt, user_content):
         if "compliance expert" in system_prompt:
@@ -273,7 +273,7 @@ def test_adjudicate_verifier_adversarial_timeout_handling(monkeypatch):
             return {"confidence": 0.75, "rationale": "Evidence supports violation"}
         return {}
 
-    with patch("audit_packs.adjudicate._call_role", side_effect=mock_call):
+    with patch("audit_packs_ai.adjudicate._call_role", side_effect=mock_call):
         result = adjudicate(_cf(), _pr(), AdjudicationMode.ENFORCE, _DEFAULT_CONFIG)
         # If timeout works, it should fallback to empty string arguments
         assert result.verifier_argument == ""

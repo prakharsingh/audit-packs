@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 def test_openai_missing_gives_actionable_error():
     """ModuleNotFoundError for openai must include install instructions."""
-    from audit_packs.adjudicate import _call_role
+    from audit_packs_ai.adjudicate import _call_role
 
     role_cfg = {
         "provider": "openai",
@@ -23,7 +23,7 @@ def test_openai_missing_gives_actionable_error():
 
 
 def test_anthropic_missing_gives_actionable_error():
-    from audit_packs.adjudicate import _call_role
+    from audit_packs_ai.adjudicate import _call_role
 
     role_cfg = {
         "provider": "anthropic",
@@ -37,7 +37,7 @@ def test_anthropic_missing_gives_actionable_error():
 
 
 def test_google_missing_gives_actionable_error():
-    from audit_packs.adjudicate import _call_role
+    from audit_packs_ai.adjudicate import _call_role
 
     role_cfg = {
         "provider": "google",

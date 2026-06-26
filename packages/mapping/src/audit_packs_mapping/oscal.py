@@ -14,7 +14,7 @@ import uuid
 from collections import defaultdict
 from datetime import datetime, timezone
 
-from audit_packs.models import AssessmentStatus, ControlStatus
+from audit_packs_core.models import AssessmentStatus, ControlStatus
 
 
 def _now_iso() -> str:
