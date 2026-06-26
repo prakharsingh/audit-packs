@@ -1,14 +1,37 @@
+# Caches and virtual environments
 .venv/
 .pytest_cache/
+.ruff_cache/
 __pycache__/
 *.pyc
-.DS_Store
+.audit-cache/
+
+# IDE settings
+.idea/
+.vscode/
+
+# Build and packaging
 dist/
 build/
 *.egg-info/
-.gemini/
-.audit-cache/
-.idea/
 node_modules/
+
+# OS files
+.DS_Store
+
+# Agent files and local settings
+.agent/
+.agents/
+.claude/
+.gemini/
+.superpowers/
+AGENTS.md
+gemini.md
+CLAUDE.md
+opencode.json
+
+
+# Local execution outputs / configs
 e2e_manual_output/
 results.sarif
+github_conf/

@@ -21,10 +21,10 @@ def has_docker():
         return False
 
 
-# Skip this test module if docker daemon is not available
+# Skip this test module if docker daemon is not available or SKIP_DOCKER_TESTS is set
 pytestmark = pytest.mark.skipif(
-    not has_docker(),
-    reason="Docker is not installed or the daemon is not running — skipping Docker smoke test",
+    not has_docker() or os.environ.get("SKIP_DOCKER_TESTS") == "true",
+    reason="Docker is not installed/daemon not running or SKIP_DOCKER_TESTS is set",
 )
 
 
