@@ -1,0 +1,54 @@
+[project]
+name = "audit-packs-action"
+version = "0.1.1"
+description = "GitHub Action that maps IaC security findings to compliance framework controls and posts evidence-backed inline PR review comments."
+license = { text = "Apache-2.0" }
+requires-python = ">=3.11"
+keywords = [
+    "compliance", "security", "nist-800-53", "soc2", "gdpr", "hipaa", "iso27001",
+    "pci-dss", "fedramp", "checkov", "semgrep", "codeql", "github-action", "iac",
+    "sast", "oscal", "grc", "evidence"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Software Development :: Quality Assurance",
+]
+
+[project.urls]
+Homepage = "https://github.com/prakharsingh/audit-packs"
+Repository = "https://github.com/prakharsingh/audit-packs.git"
+"Bug Tracker" = "https://github.com/prakharsingh/audit-packs/issues"
+
+dependencies = [
+    "audit-packs-core>=0.1.1",
+    "audit-packs-mapping>=0.1.1",
+    "audit-packs-evidence>=0.1.1",
+    "audit-packs-ai>=0.1.1",
+    "PyYAML>=6.0",
+    "requests>=2.31",
+]
+
+[project.scripts]
+audit-packs = "audit_packs_action.cli:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pre-commit>=3.5.0",
+    "python-semantic-release>=9.0.0"
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

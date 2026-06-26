@@ -1,0 +1,14 @@
+[project]
+name = "audit-packs-core"
+version = "0.1.1"
+description = "Core models, normalization, diff, and data-flow primitives for audit-packs"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.11"
+dependencies = ["PyYAML>=6.0"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

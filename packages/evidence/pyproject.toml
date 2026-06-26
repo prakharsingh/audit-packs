@@ -1,0 +1,14 @@
+[project]
+name = "audit-packs-evidence"
+version = "0.1.1"
+description = "Evidence enrichment and detection agents for audit-packs"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.11"
+dependencies = ["audit-packs-core>=0.1.1", "requests>=2.31"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
