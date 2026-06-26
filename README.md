@@ -7,13 +7,26 @@
   <img src="cover.jpg" alt="Audit-Packs Banner" width="100%" />
 </p>
 
-> Map IaC security findings to compliance framework controls and post evidence-backed, control-tagged inline PR review comments with a configurable severity gate.
+> An evidence-first Compliance Intelligence Engine that transforms security scanner findings into standardized, evidence-backed compliance artifacts — inline PR comments, OSCAL, SARIF, and coverage reports.
 
-Detection is delegated entirely to best-in-class OSS engines (Checkov, Semgrep, optionally CodeQL). What this action adds is the **control mapping + evidence + PR UX layer**: reviewers see not just "S3 bucket unencrypted" but:
+Detection is delegated entirely to best-in-class OSS engines (Checkov, Semgrep, CodeQL, and future scanners). The core engine is scanner-agnostic: any tool that emits SARIF can feed it. What audit-packs adds is the **normalization → compliance mapping → evidence generation → output** layer: reviewers see not just "S3 bucket unencrypted" but:
 
 > **NIST 800-53 / SC-13 — Cryptographic Protection**
 > Severity: `high` | Engine: `checkov` (`CKV_AWS_19`)
 > Evidence: `server_side_encryption_configuration is not set`
+
+---
+
+## Supported Scanners
+
+| Scanner | Status |
+|---------|--------|
+| Checkov | Supported |
+| Semgrep | Supported |
+| CodeQL  | Supported (SARIF dir input) |
+| Trivy   | Planned |
+| tfsec   | Planned |
+| gitleaks | Planned |
 
 ---
 
