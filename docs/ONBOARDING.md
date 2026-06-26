@@ -73,7 +73,7 @@ semgrep --version
 audit-packs --help
 ```
 
-After this, `.venv/bin/audit-packs` is the CLI entry point (mapped from `audit_packs.cli:main` in `pyproject.toml`).
+After this, `.venv/bin/audit-packs` is the CLI entry point (mapped from `audit_packs_action.cli:main` in `packages/action/pyproject.toml`).
 
 ---
 
@@ -90,7 +90,7 @@ pytest tests/test_packs.py -v
 pytest tests/test_packs.py::test_map_findings_crosswalk_soc2 -v
 ```
 
-`pyproject.toml` sets `pythonpath = ["src"]`, so you do not need to install the package before running tests — `pytest` resolves imports directly from `src/`.
+`pyproject.toml` sets `pythonpath` to the five `packages/*/src` directories, so you do not need to install the packages before running tests — `pytest` resolves imports directly from the source trees.
 
 ### Test layout
 
@@ -171,7 +171,7 @@ The default threshold is 0.70. Findings below it are suppressed when `ADJUDICATI
 When `ADJUDICATION_MODE` is `advisory` or `enforce`, each finding passes through a four-role ensemble:
 
 ```
-detector → verifier → adversarial → judge
+detector → verifier → challenger → consensus
 ```
 
 Each role is independently routed to a provider and model via `audit-models.yaml`. The default routing is:
@@ -180,10 +180,10 @@ Each role is independently routed to a provider and model via `audit-models.yaml
 |---|---|---|
 | detector | OpenAI | gpt-4o |
 | verifier | Anthropic | claude-opus-4-5 |
-| adversarial | Google | gemini-1.5-pro |
-| judge | OpenAI | gpt-4o |
+| challenger | Google | gemini-1.5-pro |
+| consensus | OpenAI | gpt-4o |
 
-Override any role with `DETECTOR_MODEL`, `VERIFIER_MODEL`, `ADVERSARIAL_MODEL`, or `JUDGE_MODEL` env vars. See `examples/audit-models/` for provider-specific configurations including local Ollama.
+Override any role with `DETECTOR_MODEL`, `VERIFIER_MODEL`, `CHALLENGER_MODEL`, or `CONSENSUS_MODEL` env vars. See `examples/audit-models/` for provider-specific configurations including local Ollama.
 
 Set `ADJUDICATION_MODE=off` to make zero LLM calls. This is the default.
 
@@ -192,40 +192,49 @@ Set `ADJUDICATION_MODE=off` to make zero LLM calls. This is the default.
 ## 6. Codebase map
 
 ```
-src/audit_packs/
-  cli.py          analyze() + assess() + main() — env-driven orchestrator
-  models.py       Finding, ControlFinding, ControlStatus, AdjudicationResult,
-                  ScoredFinding (frozen dataclasses); enums; SEVERITIES
-  diff.py         parse_unified_diff() → {file: set[line]}
-  normalize.py    sarif_to_findings(); extract_rule_confidences()
-  engines.py      CheckovEngine / SemgrepEngine / CodeQLEngine (async);
-                  run_git_diff(); read_codeql_sarif()
-  agents.py       DetectionAgent ABC + GDPRAgent, HIPAAAgent, SOC2Agent,
-                  FedRAMPAgent, OrgPolicyAgent, DataFlowAgent;
-                  build_agents() → list[DetectionAgent]
-  packs.py        load_pack(); map_findings(); iter_controls()
-  evidence.py     enrich(); fetch_pr_context() [GitHub IO];
-                  evidence_confidence(); extract_doc_context()
-  dataflow.py     extract_data_flows() (Python/HCL/YAML); flow_confidence()
-  adjudicate.py   AI ensemble [LLM HTTP IO]; load_model_config();
-                  result caching in .audit-cache/
-  confidence.py   ScoreComponents; score_finding(); apply_confidence_gate();
-                  DEFAULT_WEIGHTS; historical precision helpers
-  coverage.py     compute_coverage() → list[ControlStatus]
-  oscal.py        to_assessment_results() — NIST OSCAL assessment-results JSON
-  report.py       build_comments(); build_summary_comment(); gate_failed();
-                  build_coverage_matrix(md/html); build_sarif();
-                  post_review() [GitHub IO]; write_job_summary()
+packages/
+  core/src/audit_packs_core/
+    models.py       Finding, ControlFinding, ControlStatus, AdjudicationResult,
+                    ScoredFinding (frozen dataclasses); enums; SEVERITIES
+    diff.py         parse_unified_diff() → {file: set[line]}
+    normalize.py    sarif_to_findings(); extract_rule_confidences()
+    dataflow.py     extract_data_flows() (Python/HCL/YAML); flow_confidence()
+
+  mapping/src/audit_packs_mapping/
+    packs.py        load_pack(); map_findings(); iter_controls()
+    coverage.py     compute_coverage() → list[ControlStatus]
+    oscal.py        to_assessment_results() — NIST OSCAL assessment-results JSON
+
+  evidence/src/audit_packs_evidence/
+    evidence.py     enrich(); fetch_pr_context() [GitHub IO];
+                    evidence_confidence(); extract_doc_context()
+    agents.py       DetectionAgent ABC + GDPRAgent, HIPAAAgent, SOC2Agent,
+                    FedRAMPAgent, OrgPolicyAgent, DataFlowAgent;
+                    build_agents() → list[DetectionAgent]
+
+  ai/src/audit_packs_ai/
+    adjudicate.py   AI ensemble [LLM HTTP IO]; load_model_config();
+                    result caching in .audit-cache/
+    confidence.py   ScoreComponents; score_finding(); apply_confidence_gate();
+                    DEFAULT_WEIGHTS; historical precision helpers
+
+  action/src/audit_packs_action/
+    engines.py      CheckovEngine / SemgrepEngine / CodeQLEngine (async);
+                    ASTEngine (in-process AST visitors); run_git_diff()
+    report.py       build_comments(); build_summary_comment(); gate_failed();
+                    build_coverage_matrix(md/html); build_sarif();
+                    post_review() [GitHub IO]; write_job_summary()
+    cli.py          analyze() + assess() + main() — env-driven orchestrator
 
 packs/
-  nist-800-53.yaml    canonical pack: (engine, check_id) → control
-  soc2.yaml           crosswalk → nist-800-53 via maps_to
-  gdpr.yaml           crosswalk → nist-800-53
-  hipaa.yaml          crosswalk → nist-800-53
-  iso27001.yaml       crosswalk → nist-800-53
-  pci-dss.yaml        crosswalk → nist-800-53
-  fedramp.yaml        crosswalk → nist-800-53
-  org-policy.yaml     example org-policy pack (crosswalk → nist-800-53)
+  nist-800-53/controls.yaml    canonical pack: (engine, check_id) → control
+  soc2/controls.yaml           crosswalk → nist-800-53 via maps_to
+  gdpr/controls.yaml           crosswalk → nist-800-53
+  hipaa/controls.yaml          crosswalk → nist-800-53
+  iso27001/controls.yaml       crosswalk → nist-800-53
+  pci-dss/controls.yaml        crosswalk → nist-800-53
+  fedramp/controls.yaml        crosswalk → nist-800-53
+  org-policy/controls.yaml     example org-policy pack (crosswalk → nist-800-53)
 
 rules/
   weak-cipher.yaml        Semgrep — detect weak TLS/cipher config
@@ -266,14 +275,18 @@ A pack is a YAML file in `packs/`. There are two kinds:
 Used only for NIST 800-53. Maps `(engine, check_id)` pairs directly to control IDs.
 
 ```yaml
-id: nist-800-53
+schema_version: "2"
+framework: nist-800-53
 title: NIST SP 800-53 Rev 5
 controls:
   - id: SC-13
     title: Cryptographic Protection
-    checks:
-      - { engine: checkov, ids: [CKV_AWS_19, CKV_AWS_5, CKV_AWS_145] }
-      - { engine: semgrep,  ids: [weak-cipher] }
+    mappings:
+      - { engine: checkov, check_id: CKV_AWS_19 }
+      - { engine: checkov, check_id: CKV_AWS_5 }
+      - { engine: semgrep,  check_id: audit-packs.weak-cipher }
+    evidence_requirements:
+      - { type: code_snippet, description: "Encryption algorithm used" }
 ```
 
 ### Crosswalk pack
@@ -281,18 +294,19 @@ controls:
 Used for every other framework. Controls map to one or more NIST 800-53 controls via `maps_to`. The detection logic is inherited from the NIST pack — no check IDs are duplicated.
 
 ```yaml
-id: my-framework
+schema_version: "2"
+framework: my-framework
 title: My Framework v1
 crosswalk: nist-800-53
 
 controls:
   - id: MF-1.1
     title: Encryption at rest
-    maps_to: [SC-13, SC-28]
+    maps_to: SC-13
 
   - id: MF-1.2
     title: Transmission security
-    maps_to: [SC-8, SC-13]
+    maps_to: SC-8
 
   # Governance controls with no IaC-observable checks use assessment: manual
   - { id: MF-2.1, title: Policy review, assessment: manual }
@@ -300,14 +314,14 @@ controls:
 
 ### Step-by-step: add a crosswalk pack
 
-1. Create `packs/my-framework.yaml` following the crosswalk schema above. Use an existing pack like `packs/soc2.yaml` as a reference.
+1. Create `packs/my-framework/controls.yaml` following the crosswalk schema above. Use an existing pack like `packs/soc2/controls.yaml` as a reference.
 
 2. Verify the pack loads without error:
 
    ```bash
    python3 -c "
-   from audit_packs.packs import load_pack
-   pack = load_pack('packs/my-framework.yaml')
+   from audit_packs_mapping.packs import load_pack
+   pack = load_pack('packs/my-framework')
    print(f'Loaded {len(pack[\"controls\"])} controls')
    "
    ```
@@ -316,8 +330,8 @@ controls:
 
    ```bash
    python3 -c "
-   from audit_packs.models import Finding
-   from audit_packs.packs import map_findings
+   from audit_packs_core.models import Finding
+   from audit_packs_mapping.packs import map_findings
    f = Finding('CKV_AWS_19', 'checkov', 'main.tf', 1, 'high', 'msg', 'ev')
    cfs = map_findings([f], 'packs', ['my-framework'])
    for cf in cfs:
@@ -335,7 +349,7 @@ controls:
 
 `load_pack()` in `packs.py` enforces these requirements and raises `ValueError` if they are not met:
 
-- Top-level keys `id`, `title`, and `controls` must be present.
+- Top-level keys `framework`, `title`, and `controls` must be present; `schema_version: "2"` is required.
 - Crosswalk packs must set `crosswalk: nist-800-53`.
 - Each control with `maps_to` must reference control IDs that exist in the NIST pack.
 - Severity vocabulary is fixed: `low`, `medium`, `high`, `critical`.
@@ -380,7 +394,7 @@ export GITHUB_TOKEN=<your-token>
 export PR_NUMBER=<pr-number>
 export BASE_REF=origin/main
 
-python -m audit_packs.cli
+python -m audit_packs_action.cli
 ```
 
 ### Minimal GitHub Actions workflow
