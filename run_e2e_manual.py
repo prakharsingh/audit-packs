@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 import json
 from unittest.mock import patch, MagicMock
-from audit_packs.cli import main
+from audit_packs_action.cli import main
 
 ROOT = pathlib.Path(__file__).parent.absolute()
 OUTPUT_DIR = os.path.join(ROOT, "e2e_manual_output")
@@ -111,8 +111,14 @@ def run_e2e_manual_verification():
         print("=== Running Audit Packs Pipeline ===")
         with (
             patch.dict(os.environ, env),
-            patch("audit_packs.evidence.requests.get", side_effect=mock_requests_get),
-            patch("audit_packs.report.requests.post", side_effect=mock_requests_post),
+            patch(
+                "audit_packs_evidence.evidence.requests.get",
+                side_effect=mock_requests_get,
+            ),
+            patch(
+                "audit_packs_action.report.requests.post",
+                side_effect=mock_requests_post,
+            ),
         ):
             exit_code = main()
             print(

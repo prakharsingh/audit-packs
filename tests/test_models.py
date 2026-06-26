@@ -1,5 +1,5 @@
 import pytest
-from audit_packs.models import (
+from audit_packs_core.models import (
     Finding,
     ControlFinding,
     severity_rank,
@@ -148,10 +148,10 @@ def test_adjudication_result_fields():
         control_finding=cf,
         detector_score=0.8,
         verifier_argument="data is stored unencrypted",
-        adversarial_argument="this is test infra",
-        judge_score=0.75,
+        challenger_argument="this is test infra",
+        consensus_score=0.75,
         model_consensus=0.75,
         rationale="Evidence supports a real violation.",
     )
-    assert result.model_consensus == result.judge_score
+    assert result.model_consensus == result.consensus_score
     assert result.rationale == "Evidence supports a real violation."

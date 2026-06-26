@@ -1,62 +1,38 @@
-[project]
-name = "audit-packs"
-version = "0.2.0"
-description = "GitHub Action that maps IaC security findings to compliance controls and posts evidence-backed inline PR review comments."
-license = { text = "Apache-2.0" }
-requires-python = ">=3.11"
-dependencies = ["PyYAML>=6.0", "requests>=2.31"]
-keywords = [
-    "compliance", "security", "nist-800-53", "soc2", "gdpr", "hipaa", "iso27001",
-    "pci-dss", "fedramp", "checkov", "semgrep", "codeql", "github-action", "iac",
-    "sast", "oscal", "grc", "evidence"
-]
-classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
-    "Intended Audience :: System Administrators",
-    "License :: OSI Approved :: Apache Software License",
-    "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Topic :: Security",
-    "Topic :: Software Development :: Quality Assurance",
+[tool.uv.workspace]
+members = [
+    "packages/core",
+    "packages/mapping",
+    "packages/evidence",
+    "packages/ai",
+    "packages/action",
 ]
 
-[project.urls]
-Homepage = "https://github.com/prakharsingh/audit-packs"
-Repository = "https://github.com/prakharsingh/audit-packs.git"
-"Bug Tracker" = "https://github.com/prakharsingh/audit-packs/issues"
-
-[project.optional-dependencies]
-dev = [
-    "pytest>=8.0",
-    "pre-commit>=3.5.0",
-    "python-semantic-release>=9.0.0"
-]
-ai = [
-    "openai>=1.0",
-    "anthropic>=0.20",
-    "google-generativeai>=0.5",
-]
-
-[project.scripts]
-audit-packs = "audit_packs.cli:main"
-
-
+[tool.uv.sources]
+audit-packs-core = { workspace = true }
+audit-packs-mapping = { workspace = true }
+audit-packs-evidence = { workspace = true }
+audit-packs-ai = { workspace = true }
+audit-packs-action = { workspace = true }
 
 [tool.pytest.ini_options]
-pythonpath = ["src"]
 testpaths = ["tests"]
+pythonpath = [
+    "packages/core/src",
+    "packages/mapping/src",
+    "packages/evidence/src",
+    "packages/ai/src",
+    "packages/action/src",
+]
 
-
+[tool.ruff]
+exclude = ["real_world_fixtures"]
 
 [tool.semantic_release]
-version_variables = ["src/audit_packs/__init__.py:__version__"]
-version_toml = ["pyproject.toml:project.version"]
+version_variables = ["packages/action/src/audit_packs_action/__init__.py:__version__"]
+version_toml = ["packages/action/pyproject.toml:project.version"]
 commit_parser = "conventional"
 allow_zero_version = true
-build_command = "pip install build && python -m build"
+build_command = "pip install build && python -m build packages/action"
 upload_to_pypi = false
 
 [tool.semantic_release.changelog]
@@ -69,14 +45,3 @@ changelog_file = "CHANGELOG.md"
 match = "(main|master)"
 prerelease_token = "rc"
 prerelease = false
-
-
-[tool.ruff]
-exclude = [
-    "real_world_fixtures",
-]
-
-[build-system]
-requires = ["setuptools>=68"]
-build-backend = "setuptools.build_meta"
-

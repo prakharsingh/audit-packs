@@ -1,5 +1,5 @@
 import pytest
-from audit_packs.cli import normalize_frameworks
+from audit_packs_action.cli import normalize_frameworks
 
 
 def test_gdpr_normalized():
@@ -69,7 +69,7 @@ def test_empty_tokens_skipped():
 
 def test_main_does_not_crash_on_missing_pr_number(monkeypatch):
     from unittest.mock import patch
-    from audit_packs.cli import main
+    from audit_packs_action.cli import main
 
     monkeypatch.setenv("GITHUB_REPOSITORY", "owner/repo")
     monkeypatch.setenv("GITHUB_TOKEN", "mock_token")
@@ -81,7 +81,7 @@ def test_main_does_not_crash_on_missing_pr_number(monkeypatch):
     monkeypatch.setenv("EMIT_COVERAGE", "false")
     monkeypatch.setenv("EMIT_SARIF", "false")
 
-    with patch("audit_packs.cli.assess", return_value=[]) as mock_assess:
+    with patch("audit_packs_action.cli.assess", return_value=[]) as mock_assess:
         code = main()
         assert code == 0
         mock_assess.assert_called_once()

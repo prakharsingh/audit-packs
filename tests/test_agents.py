@@ -1,7 +1,7 @@
 import tempfile
 import os
 import yaml
-from audit_packs.agents import (
+from audit_packs_evidence.agents import (
     DetectionAgent,
     NoOpAgent,
     DataFlowAgent,

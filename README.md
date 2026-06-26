@@ -7,13 +7,26 @@
   <img src="cover.jpg" alt="Audit-Packs Banner" width="100%" />
 </p>
 
-> Map IaC security findings to compliance framework controls and post evidence-backed, control-tagged inline PR review comments with a configurable severity gate.
+> An evidence-first Compliance Intelligence Engine that transforms security scanner findings into standardized, evidence-backed compliance artifacts — inline PR comments, OSCAL, SARIF, and coverage reports.
 
-Detection is delegated entirely to best-in-class OSS engines (Checkov, Semgrep, optionally CodeQL). What this action adds is the **control mapping + evidence + PR UX layer**: reviewers see not just "S3 bucket unencrypted" but:
+Detection is delegated entirely to best-in-class OSS engines (Checkov, Semgrep, CodeQL, and future scanners). The core engine is scanner-agnostic: any tool that emits SARIF can feed it. What audit-packs adds is the **normalization → compliance mapping → evidence generation → output** layer: reviewers see not just "S3 bucket unencrypted" but:
 
 > **NIST 800-53 / SC-13 — Cryptographic Protection**
 > Severity: `high` | Engine: `checkov` (`CKV_AWS_19`)
 > Evidence: `server_side_encryption_configuration is not set`
+
+---
+
+## Supported Scanners
+
+| Scanner | Status |
+|---------|--------|
+| Checkov | Supported |
+| Semgrep | Supported |
+| CodeQL  | Supported (SARIF dir input) |
+| Trivy   | Planned |
+| tfsec   | Planned |
+| gitleaks | Planned |
 
 ---
 
@@ -466,7 +479,7 @@ You can also override individual roles without a config file using per-role inpu
 
 ## Custom org-policy pack
 
-Edit `packs/org-policy.yaml` to define internal controls and map them to NIST 800-53 controls:
+Edit `packs/org-policy/controls.yaml` to define internal controls and map them to NIST 800-53 controls:
 
 ```yaml
 id: org-policy
@@ -479,7 +492,7 @@ controls:
   - { id: ACME-LOG-1, title: Enable audit logging for all services,     maps_to: [AU-2] }
 ```
 
-Any check ID already mapped in `nist-800-53.yaml` is automatically surfaced under your org control ID with no other changes required.
+Any check ID already mapped in `packs/nist-800-53/controls.yaml` is automatically surfaced under your org control ID with no other changes required.
 
 ---
 
@@ -511,17 +524,21 @@ If `codeql-sarif` is absent or the directory is empty, CodeQL findings are silen
 
 ## Local development
 
-**Prerequisites:** Python 3.11+, `git`
+**Prerequisites:** Python 3.11+, `git`, [`uv`](https://docs.astral.sh/uv/) (recommended for the workspace install)
 
 ```bash
-# Clone and set up a virtual environment
+# Clone the repo
 git clone https://github.com/prakharsingh/audit-packs.git
 cd audit-packs
-python -m venv .venv
-source .venv/bin/activate
 
-# Install in editable mode (includes Checkov and Semgrep)
-pip install -e ".[dev]"
+# Install all workspace packages (core, mapping, evidence, ai, action) + dev deps
+uv sync
+
+# Or, without uv: install each workspace package editable
+python -m venv .venv && source .venv/bin/activate
+pip install -e packages/core -e packages/mapping -e packages/evidence \
+            -e packages/ai -e packages/action[ai]
+pip install pytest checkov semgrep
 
 # Verify engines are on PATH
 checkov --version
@@ -553,33 +570,47 @@ pytest tests/test_docker_smoke.py -v
 
 ### Project layout
 
+The Python source is organized as a `uv` workspace of five packages under `packages/`. Each package is independently installable and declares its inter-package dependencies in its own `pyproject.toml`.
+
 ```
-src/audit_packs/
-  models.py      # Finding, ControlFinding, ControlStatus, AdjudicationResult dataclasses
-  diff.py        # parse_unified_diff() → {file: set[line]}
-  normalize.py   # sarif_to_findings(); extract_rule_confidences()
-  engines.py     # CheckovEngine, SemgrepEngine, CodeQLEngine (async + sync fallback)
-  agents.py      # GDPRAgent, HIPAAAgent, SOC2Agent, FedRAMPAgent, OrgPolicyAgent, DataFlowAgent
-  packs.py       # load_pack(), map_findings() — control mapping + NIST crosswalk resolution
-  evidence.py    # enrich(), fetch_pr_context() [GitHub API], evidence_confidence()
-  dataflow.py    # extract_data_flows() (Python / HCL / YAML), flow_confidence()
-  adjudicate.py  # AI ensemble (detector → verifier → adversarial → judge) [LLM HTTP]
-  confidence.py  # score_finding(), apply_confidence_gate(), DEFAULT_WEIGHTS
-  coverage.py    # compute_coverage() → list[ControlStatus]
-  oscal.py       # to_assessment_results() — NIST OSCAL assessment-results JSON
-  report.py      # build_comments(), post_review(), build_coverage_matrix(), build_sarif()
-  cli.py         # analyze() (diff path) + assess() (full path) + main()
+packages/
+  core/src/audit_packs_core/            # pure-Python primitives, no network/subprocess
+    models.py      # Finding, ControlFinding, ControlStatus, AdjudicationResult dataclasses
+    diff.py        # parse_unified_diff() → {file: set[line]}
+    normalize.py   # sarif_to_findings(); extract_rule_confidences()
+    dataflow.py    # extract_data_flows() (Python / HCL / YAML), flow_confidence()
 
-packs/           # Framework YAML packs (data only — no detection logic)
-  nist-800-53.yaml          # canonical: (engine, check_id) → control
-  soc2.yaml, gdpr.yaml, hipaa.yaml, iso27001.yaml,
-  pci-dss.yaml, fedramp.yaml, org-policy.yaml   # crosswalk → nist-800-53
+  mapping/src/audit_packs_mapping/      # depends on: core
+    packs.py       # load_pack(), iter_controls(), map_findings() — control mapping + NIST crosswalk
+    coverage.py    # compute_coverage() → list[ControlStatus]
+    oscal.py       # to_assessment_results() — NIST OSCAL assessment-results JSON
 
-rules/           # Authored Semgrep rules bundled with the action
+  evidence/src/audit_packs_evidence/    # depends on: core
+    evidence.py    # enrich(), fetch_pr_context() [GitHub API], evidence_confidence()
+    agents.py      # GDPRAgent, HIPAAAgent, SOC2Agent, FedRAMPAgent, OrgPolicyAgent, DataFlowAgent
+
+  ai/src/audit_packs_ai/                # depends on: core, mapping; optional LLM SDKs via [ai] extra
+    adjudicate.py  # AI ensemble (detector → verifier → adversarial → judge) [LLM HTTP]
+    confidence.py  # score_finding(), apply_confidence_gate(), DEFAULT_WEIGHTS
+
+  action/src/audit_packs_action/        # depends on: core, mapping, evidence, ai — top-level entrypoint
+    cli.py         # analyze() (diff path) + assess() (full path) + main()
+    engines.py     # CheckovEngine, SemgrepEngine, CodeQLEngine (async + sync fallback)
+    report.py      # build_comments(), post_review(), build_coverage_matrix(), build_sarif()
+
+packs/                                  # Framework YAML packs (data only — no detection logic)
+  nist-800-53/controls.yaml             # canonical: (engine, check_id) → control
+  soc2/controls.yaml,    gdpr/controls.yaml,    hipaa/controls.yaml,
+  iso27001/controls.yaml, pci-dss/controls.yaml, fedramp/controls.yaml,
+  org-policy/controls.yaml              # all crosswalk → nist-800-53
+
+rules/                                  # Authored Semgrep rules bundled with the action
   weak-cipher.yaml  no-tls-verify.yaml  pii-fields.yaml
   insecure-config.yaml  hardcoded-credential.yaml
   overpermissive-iam.yaml  missing-audit-log.yaml
 ```
+
+The dependency graph is acyclic: `core` → `mapping` → `ai` and `core` → `evidence`, with `action` depending on all four. Only `ai` pulls optional LLM SDKs (via its `[ai]` extra).
 
 **Key design constraints:**
 - Detection is never re-implemented. Engines run as subprocesses; findings arrive as SARIF.

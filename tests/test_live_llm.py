@@ -5,14 +5,14 @@ import threading
 import json
 from unittest.mock import patch
 import pytest
-from audit_packs.models import (
+from audit_packs_core.models import (
     Finding,
     ControlFinding,
     AdjudicationMode,
     AdjudicationResult,
 )
-from audit_packs.evidence import PRContext
-from audit_packs.adjudicate import adjudicate
+from audit_packs_evidence.evidence import PRContext
+from audit_packs_ai.adjudicate import adjudicate
 
 
 pytestmark = pytest.mark.skipif(
@@ -111,7 +111,7 @@ def mock_server():
 @pytest.fixture()
 def isolated_cache(tmp_path):
     """Redirect adjudicate's cache to a temporary directory for test isolation."""
-    with patch("audit_packs.adjudicate._CACHE_DIR", str(tmp_path)):
+    with patch("audit_packs_ai.adjudicate._CACHE_DIR", str(tmp_path)):
         yield tmp_path
 
 
@@ -134,13 +134,13 @@ def test_live_llm_debate_and_caching(mock_server, isolated_cache):
             "base_url": base_url,
             "api_key_env": "MOCK_KEY",
         },
-        "adversarial": {
+        "challenger": {
             "provider": "openai",
             "model": "mock-adversarial",
             "base_url": base_url,
             "api_key_env": "MOCK_KEY",
         },
-        "judge": {
+        "consensus": {
             "provider": "openai",
             "model": "mock-judge",
             "base_url": base_url,
@@ -164,10 +164,10 @@ def test_live_llm_debate_and_caching(mock_server, isolated_cache):
     result = adjudicate(cf, pr_context, AdjudicationMode.ENFORCE, model_config)
     assert isinstance(result, AdjudicationResult)
     assert result.detector_score == 0.85
-    assert result.judge_score == 0.78
+    assert result.consensus_score == 0.78
     assert result.model_consensus == 0.78
     assert "Mock verifier" in result.verifier_argument
-    assert "Mock adversarial" in result.adversarial_argument
+    assert "Mock adversarial" in result.challenger_argument
 
     # 3. Test Cache Hit: shutdown / make server fail verifier, and run again.
     # It must return cached result successfully without hitting mock server.
@@ -201,13 +201,13 @@ def test_live_llm_fallback_on_role_failure(mock_server, isolated_cache):
             "base_url": base_url,
             "api_key_env": "MOCK_KEY",
         },
-        "adversarial": {
+        "challenger": {
             "provider": "openai",
             "model": "mock-adversarial",
             "base_url": base_url,
             "api_key_env": "MOCK_KEY",
         },
-        "judge": {
+        "consensus": {
             "provider": "openai",
             "model": "mock-judge",
             "base_url": base_url,
@@ -223,16 +223,14 @@ def test_live_llm_fallback_on_role_failure(mock_server, isolated_cache):
     pr_context = PRContext("Other PR", ("other commit",))
 
     # Run adjudication. Since verifier fails (500), verifier_argument will be empty,
-    # but the judge should still proceed and output judge_score.
+    # but the consensus should still proceed and output consensus_score.
     try:
         result = adjudicate(cf, pr_context, AdjudicationMode.ENFORCE, model_config)
         assert isinstance(result, AdjudicationResult)
         assert result.detector_score == 0.85
         assert result.verifier_argument == ""  # verifier failed
-        assert (
-            "Mock adversarial" in result.adversarial_argument
-        )  # adversarial succeeded
-        assert result.judge_score == 0.78
+        assert "Mock adversarial" in result.challenger_argument  # adversarial succeeded
+        assert result.consensus_score == 0.78
         assert result.model_consensus == 0.78
     finally:
         server_fail_verifier = False

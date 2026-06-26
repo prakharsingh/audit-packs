@@ -1,8 +1,13 @@
 """Tests for oscal.py — OSCAL assessment-results generation."""
 
 import json
-from audit_packs.models import Finding, ControlFinding, AssessmentStatus, ControlStatus
-from audit_packs.oscal import to_assessment_results
+from audit_packs_core.models import (
+    Finding,
+    ControlFinding,
+    AssessmentStatus,
+    ControlStatus,
+)
+from audit_packs_mapping.oscal import to_assessment_results
 
 
 def _status(fw, ctrl_id, status, findings=()):

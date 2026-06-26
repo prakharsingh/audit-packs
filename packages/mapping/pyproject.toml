@@ -1,0 +1,14 @@
+[project]
+name = "audit-packs-mapping"
+version = "0.1.1"
+description = "Compliance mapping, coverage, and OSCAL export for audit-packs"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.11"
+dependencies = ["audit-packs-core>=0.1.1", "PyYAML>=6.0"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

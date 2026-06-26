@@ -1,0 +1,38 @@
+schema_version: '2'
+framework: hipaa
+title: HIPAA Security Rule (45 CFR Part 164)
+crosswalk: nist-800-53
+controls:
+- id: §164.312(a)(1)
+  title: Access Control Standard
+  maps_to:
+  - AC-3
+  - AC-6
+  evidence_requirements: []
+- id: §164.312(a)(2)(iv)
+  title: Encryption and Decryption
+  maps_to:
+  - SC-13
+  - SC-28
+  evidence_requirements: []
+- id: §164.312(b)
+  title: Audit Controls
+  maps_to:
+  - AU-2
+  evidence_requirements: []
+- id: §164.312(d)
+  title: Person or Entity Authentication
+  maps_to:
+  - IA-5
+  evidence_requirements: []
+- id: §164.312(e)(1)
+  title: Transmission Security Standard
+  maps_to:
+  - SC-8
+  evidence_requirements: []
+- id: §164.312(e)(2)(ii)
+  title: Encryption of Data in Transit
+  maps_to:
+  - SC-8
+  - SC-13
+  evidence_requirements: []

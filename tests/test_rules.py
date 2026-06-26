@@ -19,14 +19,13 @@ def _load_rule_ids(rule_file: pathlib.Path) -> list[str]:
 
 
 def _nist_semgrep_ids() -> dict[str, str]:
-    """Return {semgrep_rule_id: nist_control_id} from nist-800-53.yaml."""
-    nist = yaml.safe_load((PACKS_DIR / "nist-800-53.yaml").read_text())
+    """Return {semgrep_rule_id: nist_control_id} from nist-800-53/controls.yaml."""
+    nist = yaml.safe_load((PACKS_DIR / "nist-800-53" / "controls.yaml").read_text())
     mapping: dict[str, str] = {}
     for control in nist["controls"]:
-        for group in control.get("checks", []):
-            if group["engine"] == "semgrep":
-                for rule_id in group["ids"]:
-                    mapping[rule_id] = control["id"]
+        for m in control.get("mappings", []):
+            if m["engine"] == "semgrep":
+                mapping[m["check_id"]] = control["id"]
     return mapping
 
 

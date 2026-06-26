@@ -1,4 +1,4 @@
-from audit_packs.diff import parse_unified_diff
+from audit_packs_core.diff import parse_unified_diff
 
 DIFF = """diff --git a/main.tf b/main.tf
 index 111..222 100644

@@ -2,9 +2,9 @@ import json
 import pathlib
 import tempfile
 import pytest
-from audit_packs.engines import read_codeql_sarif
-from audit_packs.normalize import sarif_to_findings, extract_rule_confidences
-from audit_packs.models import PathNode
+from audit_packs_action.engines import read_codeql_sarif
+from audit_packs_core.normalize import sarif_to_findings, extract_rule_confidences
+from audit_packs_core.models import PathNode
 
 CODEQL_SARIF_WITH_FLOWS = {
     "runs": [

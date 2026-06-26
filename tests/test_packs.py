@@ -1,7 +1,7 @@
 import pathlib
 import pytest
-from audit_packs.models import Finding
-from audit_packs.packs import load_pack, map_findings, iter_controls
+from audit_packs_core.models import Finding
+from audit_packs_mapping.packs import load_pack, map_findings, iter_controls
 
 PACKS = str(pathlib.Path(__file__).parent.parent / "packs")
 
@@ -80,18 +80,19 @@ def test_iter_controls_crosswalk_resolves_check_ids():
 
 
 def test_iter_controls_manual_entry_has_empty_check_ids(tmp_path):
-    """A crosswalk control with assessment: manual and no maps_to has no check_ids."""
-    nist_pack = tmp_path / "nist-800-53.yaml"
-    nist_pack.write_text(
-        "id: nist-800-53\ntitle: NIST\ncontrols:\n"
-        "  - id: SC-13\n    title: Crypto\n    checks:\n"
-        "      - { engine: checkov, ids: [CKV_AWS_19] }\n"
+    (tmp_path / "nist-800-53").mkdir()
+    (tmp_path / "nist-800-53" / "controls.yaml").write_text(
+        "schema_version: '2'\nframework: nist-800-53\ntitle: NIST\ncontrols:\n"
+        "  - id: SC-13\n    title: Crypto\n"
+        "    mappings:\n      - {engine: checkov, check_id: CKV_AWS_19}\n"
+        "    evidence_requirements: []\n"
     )
-    manual_pack = tmp_path / "test-fw.yaml"
-    manual_pack.write_text(
-        "id: test-fw\ntitle: Test Framework\ncrosswalk: nist-800-53\ncontrols:\n"
-        "  - { id: GOV-1, title: Governance, assessment: manual }\n"
-        "  - { id: TECH-1, title: Technical, maps_to: [SC-13] }\n"
+    (tmp_path / "test-fw").mkdir()
+    (tmp_path / "test-fw" / "controls.yaml").write_text(
+        "schema_version: '2'\nframework: test-fw\ntitle: Test Framework\n"
+        "crosswalk: nist-800-53\ncontrols:\n"
+        "  - {id: GOV-1, title: Governance, assessment: manual, evidence_requirements: []}\n"
+        "  - {id: TECH-1, title: Technical, maps_to: [SC-13], evidence_requirements: []}\n"
     )
     controls = iter_controls(str(tmp_path), "test-fw")
     gov = next(c for c in controls if c["id"] == "GOV-1")
@@ -102,21 +103,20 @@ def test_iter_controls_manual_entry_has_empty_check_ids(tmp_path):
 
 
 def test_map_findings_crosswalk_with_manual_only_controls_does_not_raise(tmp_path):
-    """A crosswalk pack where some controls are manual-only should not raise ValueError
-    as long as at least one control is code-observable (has maps_to)."""
-    nist_pack = tmp_path / "nist-800-53.yaml"
-    nist_pack.write_text(
-        "id: nist-800-53\ntitle: NIST\ncontrols:\n"
-        "  - id: SC-13\n    title: Crypto\n    checks:\n"
-        "      - { engine: checkov, ids: [CKV_AWS_19] }\n"
+    (tmp_path / "nist-800-53").mkdir()
+    (tmp_path / "nist-800-53" / "controls.yaml").write_text(
+        "schema_version: '2'\nframework: nist-800-53\ntitle: NIST\ncontrols:\n"
+        "  - id: SC-13\n    title: Crypto\n"
+        "    mappings:\n      - {engine: checkov, check_id: CKV_AWS_19}\n"
+        "    evidence_requirements: []\n"
     )
-    mixed_pack = tmp_path / "mixed-fw.yaml"
-    mixed_pack.write_text(
-        "id: mixed-fw\ntitle: Mixed\ncrosswalk: nist-800-53\ncontrols:\n"
-        "  - { id: MAN-1, title: Manual Only, assessment: manual }\n"
-        "  - { id: TECH-1, title: Technical, maps_to: [SC-13] }\n"
+    (tmp_path / "mixed-fw").mkdir()
+    (tmp_path / "mixed-fw" / "controls.yaml").write_text(
+        "schema_version: '2'\nframework: mixed-fw\ntitle: Mixed\n"
+        "crosswalk: nist-800-53\ncontrols:\n"
+        "  - {id: MAN-1, title: Manual Only, assessment: manual, evidence_requirements: []}\n"
+        "  - {id: TECH-1, title: Technical, maps_to: [SC-13], evidence_requirements: []}\n"
     )
-    # Should not raise
     cfs = map_findings([_finding("CKV_AWS_19")], str(tmp_path), ["mixed-fw"])
     assert len(cfs) == 1
     assert cfs[0].control_id == "TECH-1"
@@ -125,19 +125,19 @@ def test_map_findings_crosswalk_with_manual_only_controls_does_not_raise(tmp_pat
 def test_map_findings_crosswalk_one_check_id_maps_to_multiple_framework_controls(
     tmp_path,
 ):
-    """If two framework controls both map_to the same canonical control, a finding
-    on a shared check_id should produce ControlFindings for BOTH framework controls."""
-    nist_pack = tmp_path / "nist-800-53.yaml"
-    nist_pack.write_text(
-        "id: nist-800-53\ntitle: NIST\ncontrols:\n"
-        "  - id: AU-2\n    title: Audit Events\n    checks:\n"
-        "      - { engine: checkov, ids: [CKV_AWS_67] }\n"
+    (tmp_path / "nist-800-53").mkdir()
+    (tmp_path / "nist-800-53" / "controls.yaml").write_text(
+        "schema_version: '2'\nframework: nist-800-53\ntitle: NIST\ncontrols:\n"
+        "  - id: AU-2\n    title: Audit Events\n"
+        "    mappings:\n      - {engine: checkov, check_id: CKV_AWS_67}\n"
+        "    evidence_requirements: []\n"
     )
-    fw_pack = tmp_path / "fw.yaml"
-    fw_pack.write_text(
-        "id: fw\ntitle: FW\ncrosswalk: nist-800-53\ncontrols:\n"
-        "  - { id: CTRL-A, title: Control A, maps_to: [AU-2] }\n"
-        "  - { id: CTRL-B, title: Control B, maps_to: [AU-2] }\n"
+    (tmp_path / "fw").mkdir()
+    (tmp_path / "fw" / "controls.yaml").write_text(
+        "schema_version: '2'\nframework: fw\ntitle: FW\n"
+        "crosswalk: nist-800-53\ncontrols:\n"
+        "  - {id: CTRL-A, title: Control A, maps_to: [AU-2], evidence_requirements: []}\n"
+        "  - {id: CTRL-B, title: Control B, maps_to: [AU-2], evidence_requirements: []}\n"
     )
     cfs = map_findings([_finding("CKV_AWS_67")], str(tmp_path), ["fw"])
     ids = {cf.control_id for cf in cfs}
@@ -145,18 +145,39 @@ def test_map_findings_crosswalk_one_check_id_maps_to_multiple_framework_controls
 
 
 def test_map_findings_all_manual_crosswalk_does_not_raise(tmp_path):
-    """A crosswalk pack where ALL controls are manual should not raise ValueError."""
-    nist_pack = tmp_path / "nist-800-53.yaml"
-    nist_pack.write_text(
-        "id: nist-800-53\ntitle: NIST\ncontrols:\n"
-        "  - id: SC-13\n    title: Crypto\n    checks:\n"
-        "      - { engine: checkov, ids: [CKV_AWS_19] }\n"
+    (tmp_path / "nist-800-53").mkdir()
+    (tmp_path / "nist-800-53" / "controls.yaml").write_text(
+        "schema_version: '2'\nframework: nist-800-53\ntitle: NIST\ncontrols:\n"
+        "  - id: SC-13\n    title: Crypto\n"
+        "    mappings:\n      - {engine: checkov, check_id: CKV_AWS_19}\n"
+        "    evidence_requirements: []\n"
     )
-    manual_pack = tmp_path / "manual-fw.yaml"
-    manual_pack.write_text(
-        "id: manual-fw\ntitle: Manual\ncrosswalk: nist-800-53\ncontrols:\n"
-        "  - { id: GOV-1, title: Gov Only, assessment: manual }\n"
+    (tmp_path / "manual-fw").mkdir()
+    (tmp_path / "manual-fw" / "controls.yaml").write_text(
+        "schema_version: '2'\nframework: manual-fw\ntitle: Manual\n"
+        "crosswalk: nist-800-53\ncontrols:\n"
+        "  - {id: GOV-1, title: Gov Only, assessment: manual, evidence_requirements: []}\n"
     )
-    # Should return empty (no code-observable controls) without raising
     cfs = map_findings([_finding("CKV_AWS_19")], str(tmp_path), ["manual-fw"])
     assert cfs == []
+
+
+def test_map_findings_populates_evidence_requirements(tmp_path):
+    (tmp_path / "nist-800-53").mkdir()
+    (tmp_path / "nist-800-53" / "controls.yaml").write_text(
+        "schema_version: '2'\n"
+        "framework: nist-800-53\n"
+        "title: NIST\n"
+        "controls:\n"
+        "  - id: SC-13\n"
+        "    title: Crypto\n"
+        "    mappings:\n"
+        "      - {engine: checkov, check_id: CKV_AWS_19}\n"
+        "    evidence_requirements:\n"
+        "      - {type: code_snippet, description: Algorithm used}\n"
+    )
+    finding = Finding("CKV_AWS_19", "checkov", "main.tf", 1, "high", "msg", "ev")
+    cfs = map_findings([finding], str(tmp_path), ["nist-800-53"])
+    assert len(cfs) == 1
+    assert len(cfs[0].evidence_requirements) == 1
+    assert cfs[0].evidence_requirements[0]["type"] == "code_snippet"

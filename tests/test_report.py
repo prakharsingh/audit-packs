@@ -3,8 +3,13 @@ import requests
 import json
 import re
 from unittest.mock import patch, MagicMock
-from audit_packs.models import Finding, ControlFinding, ControlStatus, AssessmentStatus
-from audit_packs.report import (
+from audit_packs_core.models import (
+    Finding,
+    ControlFinding,
+    ControlStatus,
+    AssessmentStatus,
+)
+from audit_packs_action.report import (
     build_comments,
     build_summary_comment,
     gate_failed,
@@ -38,7 +43,7 @@ def _cs(ctrl_id, status, framework="soc2", findings=()):
 
 def _scored_finding(
     surfaced=True,
-    judge_score=0.87,
+    consensus_score=0.87,
     framework="gdpr",
     control_id="Art-32-a",
     control_title="Pseudonymisation and Encryption",
@@ -47,8 +52,8 @@ def _scored_finding(
     engine="checkov",
     message="S3 bucket encryption disabled",
 ):
-    from audit_packs.models import Finding, ControlFinding, AdjudicationResult
-    from audit_packs.confidence import (
+    from audit_packs_core.models import Finding, ControlFinding, AdjudicationResult
+    from audit_packs_ai.confidence import (
         ScoreComponents,
         ScoredFinding,
         DEFAULT_WEIGHTS,
@@ -59,17 +64,17 @@ def _scored_finding(
     cf = ControlFinding(f, framework, control_id, control_title)
     result = AdjudicationResult(
         control_finding=cf,
-        detector_score=judge_score,
+        detector_score=consensus_score,
         verifier_argument="Data stored without encryption",
-        adversarial_argument="This could be a test bucket",
-        judge_score=judge_score,
-        model_consensus=judge_score,
+        challenger_argument="This could be a test bucket",
+        consensus_score=consensus_score,
+        model_consensus=consensus_score,
         rationale="Storing data at rest without encryption violates GDPR Art. 32(a).",
     )
     comps = ScoreComponents(
         rule_confidence=0.9,
         evidence_confidence=0.8,
-        model_consensus=judge_score,
+        model_consensus=consensus_score,
         historical_precision=0.78,
         control_severity=0.8,
         flow_confidence=0.9,
@@ -247,7 +252,9 @@ def test_build_sarif_result_has_location():
 
 def test_post_review_calls_correct_github_url():
     mock_resp = MagicMock()
-    with patch("audit_packs.report.requests.post", return_value=mock_resp) as mock_post:
+    with patch(
+        "audit_packs_action.report.requests.post", return_value=mock_resp
+    ) as mock_post:
         post_review(
             [{"path": "main.tf", "line": 1, "side": "RIGHT", "body": "x"}],
             "Audit summary",
@@ -263,7 +270,9 @@ def test_post_review_calls_correct_github_url():
 
 def test_post_review_sends_bearer_token_and_payload():
     mock_resp = MagicMock()
-    with patch("audit_packs.report.requests.post", return_value=mock_resp) as mock_post:
+    with patch(
+        "audit_packs_action.report.requests.post", return_value=mock_resp
+    ) as mock_post:
         post_review(
             [],
             "summary",
@@ -282,7 +291,7 @@ def test_post_review_sends_bearer_token_and_payload():
 def test_post_review_propagates_http_error():
     mock_resp = MagicMock()
     mock_resp.raise_for_status.side_effect = requests.HTTPError("403 Forbidden")
-    with patch("audit_packs.report.requests.post", return_value=mock_resp):
+    with patch("audit_packs_action.report.requests.post", return_value=mock_resp):
         with pytest.raises(requests.HTTPError):
             post_review([], "s", repo="r/r", pr_number="1", token="t", commit_sha="s")
 
@@ -312,7 +321,7 @@ def test_build_comments_includes_framework_and_control():
 
 
 def test_build_comments_includes_score_percentage():
-    scored = [_scored_finding(judge_score=0.87)]
+    scored = [_scored_finding(consensus_score=0.87)]
     comments = build_comments(scored, "abc123")
     body = comments[0]["body"]
     assert "%" in body
@@ -339,7 +348,7 @@ def test_build_comments_excludes_suppressed():
 
 
 def test_build_summary_comment_contains_framework_row():
-    from audit_packs.confidence import DEFAULT_WEIGHTS
+    from audit_packs_ai.confidence import DEFAULT_WEIGHTS
 
     scored = [
         _scored_finding(framework="gdpr"),
@@ -351,7 +360,7 @@ def test_build_summary_comment_contains_framework_row():
 
 
 def test_build_summary_comment_shows_score_formula():
-    from audit_packs.confidence import DEFAULT_WEIGHTS
+    from audit_packs_ai.confidence import DEFAULT_WEIGHTS
 
     scored = [_scored_finding()]
     summary = build_summary_comment(scored, threshold=0.70, weights=DEFAULT_WEIGHTS)

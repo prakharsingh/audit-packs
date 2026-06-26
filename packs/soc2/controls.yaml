@@ -1,0 +1,189 @@
+schema_version: '2'
+framework: soc2
+title: SOC 2 Type II (Trust Services Criteria — AICPA 2017)
+crosswalk: nist-800-53
+controls:
+- id: CC1.1
+  title: COSO Principle 1 — Integrity and Ethical Values
+  assessment: manual
+  evidence_requirements: []
+- id: CC1.2
+  title: COSO Principle 2 — Board Independence and Oversight
+  assessment: manual
+  evidence_requirements: []
+- id: CC1.3
+  title: COSO Principle 3 — Organizational Structure
+  assessment: manual
+  evidence_requirements: []
+- id: CC1.4
+  title: COSO Principle 4 — Commitment to Competence
+  assessment: manual
+  evidence_requirements: []
+- id: CC1.5
+  title: COSO Principle 5 — Accountability
+  assessment: manual
+  evidence_requirements: []
+- id: CC2.1
+  title: COSO Principle 13 — Information Quality
+  assessment: manual
+  evidence_requirements: []
+- id: CC2.2
+  title: COSO Principle 14 — Internal Communication
+  assessment: manual
+  evidence_requirements: []
+- id: CC2.3
+  title: COSO Principle 15 — External Communication
+  assessment: manual
+  evidence_requirements: []
+- id: CC3.1
+  title: COSO Principle 6 — Specify Objectives
+  assessment: manual
+  evidence_requirements: []
+- id: CC3.2
+  title: COSO Principle 7 — Risk Identification
+  assessment: manual
+  evidence_requirements: []
+- id: CC3.3
+  title: COSO Principle 8 — Risk Analysis
+  assessment: manual
+  evidence_requirements: []
+- id: CC3.4
+  title: COSO Principle 9 — Risk Assessment
+  assessment: manual
+  evidence_requirements: []
+- id: CC4.1
+  title: COSO Principle 16 — Ongoing Monitoring
+  assessment: manual
+  evidence_requirements: []
+- id: CC4.2
+  title: COSO Principle 17 — Evaluation of Monitoring Results
+  assessment: manual
+  evidence_requirements: []
+- id: CC5.1
+  title: COSO Principle 10 — Select and Develop Controls
+  assessment: manual
+  evidence_requirements: []
+- id: CC5.2
+  title: COSO Principle 11 — Technology Controls
+  assessment: manual
+  evidence_requirements: []
+- id: CC5.3
+  title: COSO Principle 12 — Deploy Control Activities
+  assessment: manual
+  evidence_requirements: []
+- id: CC6.1
+  title: Logical Access — Encryption at Rest
+  maps_to:
+  - SC-13
+  - SC-28
+  evidence_requirements: []
+- id: CC6.2
+  title: Logical Access — Account Provisioning and Management
+  maps_to:
+  - AC-2
+  evidence_requirements: []
+- id: CC6.3
+  title: Network Access — Boundary Protection
+  maps_to:
+  - SC-7
+  evidence_requirements: []
+- id: CC6.4
+  title: Logical Access — Authentication
+  maps_to:
+  - IA-2
+  - IA-5
+  evidence_requirements: []
+- id: CC6.5
+  title: Logical Access — Credential Disposal
+  maps_to:
+  - IA-5
+  evidence_requirements: []
+- id: CC6.6
+  title: Transmission Security
+  maps_to:
+  - SC-8
+  - SC-13
+  evidence_requirements: []
+- id: CC6.7
+  title: Logical Access — Least Privilege
+  maps_to:
+  - AC-3
+  - AC-6
+  evidence_requirements: []
+- id: CC6.8
+  title: Malware and Unauthorized Software Protection
+  maps_to:
+  - CM-7
+  - SI-3
+  evidence_requirements: []
+- id: CC7.1
+  title: Configuration Baseline and Monitoring
+  maps_to:
+  - CM-2
+  - CM-6
+  evidence_requirements: []
+- id: CC7.2
+  title: System Monitoring and Audit Logging
+  maps_to:
+  - AU-2
+  - AU-3
+  evidence_requirements: []
+- id: CC7.3
+  title: Evaluation of Security Events
+  maps_to:
+  - AU-3
+  - AU-9
+  evidence_requirements: []
+- id: CC7.4
+  title: Incident Response and Recovery
+  maps_to:
+  - SI-2
+  - AU-3
+  evidence_requirements: []
+- id: CC7.5
+  title: Incident Response — Post-Incident Review
+  assessment: manual
+  evidence_requirements: []
+- id: CC8.1
+  title: Change Management — Authentication and Integrity
+  maps_to:
+  - IA-5
+  - CM-2
+  evidence_requirements: []
+- id: CC8.2
+  title: Change Management — Approval and Segregation of Duties
+  assessment: manual
+  evidence_requirements: []
+- id: CC9.1
+  title: Risk Mitigation Strategy
+  assessment: manual
+  evidence_requirements: []
+- id: CC9.2
+  title: Vendor and Business Partner Risk
+  assessment: manual
+  evidence_requirements: []
+- id: A1.1
+  title: Availability — Denial of Service Protection
+  maps_to:
+  - SC-5
+  evidence_requirements: []
+- id: A1.2
+  title: Availability — Boundary and Environmental Controls
+  maps_to:
+  - SC-7
+  evidence_requirements: []
+- id: A1.3
+  title: Availability — Recovery and Backup Testing
+  assessment: manual
+  evidence_requirements: []
+- id: C1.1
+  title: Confidentiality — Encryption of Confidential Data
+  maps_to:
+  - SC-13
+  - SC-28
+  evidence_requirements: []
+- id: C1.2
+  title: Confidentiality — Disposal of Confidential Data
+  maps_to:
+  - SC-28
+  evidence_requirements: []

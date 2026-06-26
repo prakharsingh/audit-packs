@@ -1,0 +1,302 @@
+schema_version: '2'
+framework: nist-800-53
+title: NIST SP 800-53 Rev 5
+controls:
+- id: SC-5
+  title: Denial of Service Protection
+  supported_scanners:
+  - checkov
+  mappings:
+  - engine: checkov
+    check_id: CKV_AWS_86
+  - engine: checkov
+    check_id: CKV_AWS_310
+  evidence_requirements: []
+- id: SC-7
+  title: Boundary Protection
+  supported_scanners:
+  - checkov
+  mappings:
+  - engine: checkov
+    check_id: CKV_AWS_24
+  - engine: checkov
+    check_id: CKV_AWS_25
+  - engine: checkov
+    check_id: CKV_AWS_88
+  - engine: checkov
+    check_id: CKV_AWS_130
+  evidence_requirements: []
+- id: SC-8
+  title: Transmission Confidentiality and Integrity
+  supported_scanners:
+  - ast
+  - checkov
+  - semgrep
+  mappings:
+  - engine: checkov
+    check_id: CKV_AWS_2
+  - engine: checkov
+    check_id: CKV_AWS_86
+  - engine: checkov
+    check_id: CKV_AWS_68
+  - engine: semgrep
+    check_id: no-tls-verify
+  - engine: semgrep
+    check_id: ssl-verify-disabled
+  - engine: semgrep
+    check_id: tls-enabled-false
+  - engine: ast
+    check_id: AST-004
+  evidence_requirements: []
+- id: SC-12
+  title: Cryptographic Key Establishment and Management
+  supported_scanners:
+  - checkov
+  - fedramp-agent
+  mappings:
+  - engine: checkov
+    check_id: CKV_AWS_7
+  - engine: checkov
+    check_id: CKV_AWS_145
+  - engine: checkov
+    check_id: CKV_AWS_211
+  - engine: fedramp-agent
+    check_id: FEDRAMP-002
+  evidence_requirements: []
+- id: SC-13
+  title: Cryptographic Protection
+  supported_scanners:
+  - checkov
+  - dataflow-agent
+  - fedramp-agent
+  - semgrep
+  mappings:
+  - engine: checkov
+    check_id: CKV_AWS_19
+  - engine: checkov
+    check_id: CKV_AWS_5
+  - engine: checkov
+    check_id: CKV_AWS_145
+  - engine: semgrep
+    check_id: weak-cipher
+  - engine: dataflow-agent
+    check_id: DFA-001
+  - engine: fedramp-agent
+    check_id: FEDRAMP-001
+  evidence_requirements: []
+- id: SC-28
+  title: Protection of Information at Rest
+  supported_scanners:
+  - ast
+  - checkov
+  - dataflow-agent
+  - gdpr-agent
+  - hipaa-agent
+  - semgrep
+  mappings:
+  - engine: checkov
+    check_id: CKV_AWS_17
+  - engine: checkov
+    check_id: CKV_AWS_27
+  - engine: checkov
+    check_id: CKV_AWS_77
+  - engine: checkov
+    check_id: CKV_AWS_84
+  - engine: checkov
+    check_id: CKV_AWS_189
+  - engine: checkov
+    check_id: CKV_AWS_211
+  - engine: semgrep
+    check_id: pii-variable-name
+  - engine: dataflow-agent
+    check_id: DFA-001
+  - engine: gdpr-agent
+    check_id: GDPR-001
+  - engine: hipaa-agent
+    check_id: HIPAA-001
+  - engine: ast
+    check_id: AST-001
+  evidence_requirements: []
+- id: AC-2
+  title: Account Management
+  supported_scanners:
+  - checkov
+  mappings:
+  - engine: checkov
+    check_id: CKV_AWS_9
+  - engine: checkov
+    check_id: CKV_AWS_10
+  - engine: checkov
+    check_id: CKV_AWS_11
+  - engine: checkov
+    check_id: CKV_AWS_12
+  - engine: checkov
+    check_id: CKV_AWS_13
+  - engine: checkov
+    check_id: CKV_AWS_14
+  evidence_requirements: []
+- id: AC-3
+  title: Access Enforcement
+  supported_scanners:
+  - ast
+  - checkov
+  - hipaa-agent
+  mappings:
+  - engine: checkov
+    check_id: CKV_AWS_53
+  - engine: checkov
+    check_id: CKV_AWS_54
+  - engine: checkov
+    check_id: CKV_AWS_55
+  - engine: checkov
+    check_id: CKV_AWS_56
+  - engine: checkov
+    check_id: CKV_AWS_62
+  - engine: hipaa-agent
+    check_id: HIPAA-002
+  - engine: ast
+    check_id: AST-002
+  evidence_requirements: []
+- id: AC-6
+  title: Least Privilege
+  supported_scanners:
+  - checkov
+  - semgrep
+  mappings:
+  - engine: checkov
+    check_id: CKV_AWS_40
+  - engine: checkov
+    check_id: CKV_AWS_274
+  - engine: semgrep
+    check_id: overpermissive-iam
+  evidence_requirements: []
+- id: AC-17
+  title: Remote Access
+  supported_scanners:
+  - checkov
+  mappings:
+  - engine: checkov
+    check_id: CKV_AWS_88
+  - engine: checkov
+    check_id: CKV_AWS_130
+  - engine: checkov
+    check_id: CKV_AWS_184
+  evidence_requirements: []
+- id: IA-2
+  title: Identification and Authentication (Organizational Users)
+  supported_scanners:
+  - checkov
+  mappings:
+  - engine: checkov
+    check_id: CKV_AWS_9
+  - engine: checkov
+    check_id: CKV_AWS_10
+  evidence_requirements: []
+- id: IA-5
+  title: Authenticator Management
+  supported_scanners:
+  - checkov
+  - semgrep
+  mappings:
+  - engine: checkov
+    check_id: CKV_AWS_6
+  - engine: semgrep
+    check_id: hardcoded-credential
+  evidence_requirements: []
+- id: AU-2
+  title: Audit Events
+  supported_scanners:
+  - checkov
+  - soc2-agent
+  mappings:
+  - engine: checkov
+    check_id: CKV_AWS_67
+  - engine: checkov
+    check_id: CKV_AWS_35
+  - engine: checkov
+    check_id: CKV_AWS_1
+  - engine: soc2-agent
+    check_id: SOC2-002
+  evidence_requirements: []
+- id: AU-3
+  title: Content of Audit Records
+  supported_scanners:
+  - ast
+  - checkov
+  - gdpr-agent
+  - semgrep
+  - soc2-agent
+  mappings:
+  - engine: checkov
+    check_id: CKV_AWS_252
+  - engine: semgrep
+    check_id: missing-audit-log
+  - engine: gdpr-agent
+    check_id: GDPR-002
+  - engine: soc2-agent
+    check_id: SOC2-001
+  - engine: ast
+    check_id: AST-003
+  evidence_requirements: []
+- id: AU-9
+  title: Protection of Audit Information
+  supported_scanners:
+  - checkov
+  mappings:
+  - engine: checkov
+    check_id: CKV_AWS_66
+  evidence_requirements: []
+- id: CM-2
+  title: Baseline Configuration
+  supported_scanners:
+  - checkov
+  mappings:
+  - engine: checkov
+    check_id: CKV_AWS_8
+  - engine: checkov
+    check_id: CKV_AWS_79
+  evidence_requirements: []
+- id: CM-6
+  title: Configuration Settings
+  supported_scanners:
+  - checkov
+  mappings:
+  - engine: checkov
+    check_id: CKV_AWS_34
+  - engine: checkov
+    check_id: CKV_AWS_95
+  - engine: checkov
+    check_id: CKV_AWS_150
+  evidence_requirements: []
+- id: CM-7
+  title: Least Functionality
+  supported_scanners:
+  - checkov
+  mappings:
+  - engine: checkov
+    check_id: CKV_AWS_50
+  - engine: checkov
+    check_id: CKV_AWS_115
+  - engine: checkov
+    check_id: CKV_AWS_120
+  evidence_requirements: []
+- id: SI-2
+  title: Flaw Remediation
+  supported_scanners:
+  - checkov
+  mappings:
+  - engine: checkov
+    check_id: CKV_AWS_130
+  - engine: checkov
+    check_id: CKV_AWS_161
+  evidence_requirements: []
+- id: SI-3
+  title: Malware Protection
+  supported_scanners:
+  - checkov
+  mappings:
+  - engine: checkov
+    check_id: CKV_AWS_149
+  - engine: checkov
+    check_id: CKV_AWS_32
+  evidence_requirements: []

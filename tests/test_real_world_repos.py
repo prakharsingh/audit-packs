@@ -1,8 +1,8 @@
 import pathlib
 import shutil
 import pytest
-from audit_packs.cli import analyze, assess
-from audit_packs.models import AssessmentStatus
+from audit_packs_action.cli import analyze, assess
+from audit_packs_core.models import AssessmentStatus
 
 ROOT = pathlib.Path(__file__).parent.parent
 PACKS = str(ROOT / "packs")
