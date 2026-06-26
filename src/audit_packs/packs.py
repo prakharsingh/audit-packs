@@ -6,91 +6,75 @@ from audit_packs.models import Finding, ControlFinding
 def load_pack(path: str) -> dict:
     with open(path) as fh:
         data = yaml.safe_load(fh) or {}
-    if "id" not in data or "controls" not in data:
-        raise ValueError(f"pack {path} missing required keys 'id'/'controls'")
+    framework_key = data.get("framework") or data.get("id")
+    if not framework_key or "controls" not in data:
+        raise ValueError(f"pack {path} missing required keys 'framework'/'controls'")
 
-    # Dynamic Injection of OrgPolicy custom rules
-    if data.get("id") == "nist-800-53":
-        dir_name = os.path.dirname(path)
-        org_policy_path = os.path.join(dir_name, "org-policy.yaml")
+    if framework_key == "nist-800-53":
+        packs_dir = os.path.dirname(os.path.dirname(path))
+        org_policy_path = os.path.join(packs_dir, "org-policy", "controls.yaml")
         if os.path.exists(org_policy_path):
             try:
                 with open(org_policy_path) as op_fh:
                     op_data = yaml.safe_load(op_fh) or {}
-                custom_rules = op_data.get("custom_rules", [])
-                for rule in custom_rules:
+                for rule in op_data.get("custom_rules", []):
                     rule_id = rule.get("id")
                     maps_to = rule.get("maps_to", [])
-                    if rule_id and maps_to:
-                        for nist_ctrl in maps_to:
-                            for control in data.get("controls", []):
-                                if control.get("id") == nist_ctrl:
-                                    checks = control.setdefault("checks", [])
-                                    found = False
-                                    for group in checks:
-                                        if group.get("engine") == "org-policy-agent":
-                                            if rule_id not in group["ids"]:
-                                                group["ids"].append(rule_id)
-                                            found = True
-                                            break
-                                    if not found:
-                                        checks.append(
-                                            {
-                                                "engine": "org-policy-agent",
-                                                "ids": [rule_id],
-                                            }
-                                        )
+                    if not rule_id or not maps_to:
+                        continue
+                    for nist_ctrl in maps_to:
+                        for control in data.get("controls", []):
+                            if control.get("id") != nist_ctrl:
+                                continue
+                            mappings = control.setdefault("mappings", [])
+                            existing = [
+                                m["check_id"]
+                                for m in mappings
+                                if m.get("engine") == "org-policy-agent"
+                            ]
+                            if rule_id not in existing:
+                                mappings.append(
+                                    {"engine": "org-policy-agent", "check_id": rule_id}
+                                )
             except Exception as exc:
                 import sys
 
                 print(
-                    f"Warning: Failed to load custom rules from org-policy.yaml: {exc}",
+                    f"Warning: Failed to load org-policy/controls.yaml: {exc}",
                     file=sys.stderr,
                 )
     return data
 
 
 def _pack_path(packs_dir: str, pack_id: str) -> str:
-    return os.path.join(packs_dir, f"{pack_id}.yaml")
+    return os.path.join(packs_dir, pack_id, "controls.yaml")
 
 
-def _canonical_index(pack: dict) -> dict[tuple[str, str], tuple[str, str]]:
-    """(engine, check_id) -> (control_id, control_title)"""
-    index: dict[tuple[str, str], tuple[str, str]] = {}
+def _canonical_index(pack: dict) -> dict[tuple[str, str], tuple[str, str, tuple]]:
+    """(engine, check_id) -> (control_id, control_title, evidence_requirements)"""
+    index: dict[tuple[str, str], tuple[str, str, tuple]] = {}
     for control in pack["controls"]:
-        for group in control.get("checks", []):
-            engine = group["engine"]
-            for cid in group["ids"]:
-                index[(engine, cid)] = (
-                    control["id"],
-                    control.get("title", control["id"]),
-                )
+        ev_reqs: tuple = tuple(control.get("evidence_requirements", []))
+        for m in control.get("mappings", []):
+            index[(m["engine"], m["check_id"])] = (
+                control["id"],
+                control.get("title", control["id"]),
+                ev_reqs,
+            )
     return index
 
 
 def _canonical_check_ids(pack: dict) -> dict[str, list[tuple[str, str]]]:
-    """control_id -> [(engine, check_id), ...]  for a canonical pack."""
+    """control_id -> [(engine, check_id), ...]"""
     result: dict[str, list[tuple[str, str]]] = {}
     for control in pack["controls"]:
-        pairs: list[tuple[str, str]] = []
-        for group in control.get("checks", []):
-            engine = group["engine"]
-            for cid in group["ids"]:
-                pairs.append((engine, cid))
+        pairs = [(m["engine"], m["check_id"]) for m in control.get("mappings", [])]
         result[control["id"]] = pairs
     return result
 
 
 def iter_controls(packs_dir: str, framework: str) -> list[dict]:
-    """Return every control in *framework* with its resolved check_ids.
-
-    Each item is a dict:
-      id:          control ID in this framework
-      title:       human-readable title
-      assessment:  None (code-observable) | "manual" (governance, no engine check)
-      check_ids:   list of (engine, check_id) pairs that guard this control
-      maps_to:     canonical control IDs this crosswalk entry resolves to (crosswalk only)
-    """
+    """Return every control in *framework* with its resolved check_ids."""
     pack = load_pack(_pack_path(packs_dir, framework))
     crosswalk_id = pack.get("crosswalk")
 
@@ -115,7 +99,6 @@ def iter_controls(packs_dir: str, framework: str) -> list[dict]:
             )
         return result
     else:
-        # Canonical pack — check_ids come directly from the control's checks
         canon_checks = _canonical_check_ids(pack)
         return [
             {
@@ -142,16 +125,13 @@ def map_findings(
         check_index = _canonical_index(canonical)
 
         if crosswalk_id:
-            # One canonical control may be referenced by multiple framework controls
-            # (e.g. CC7.2 and CC7.4 both map_to AU-3), so we use a list per key.
-            cw: dict[str, list[tuple[str, str]]] = {}
+            cw: dict[str, list[tuple[str, str, tuple]]] = {}
             for control in pack["controls"]:
+                ev_reqs: tuple = tuple(control.get("evidence_requirements", []))
                 for mapped in control.get("maps_to", []):
                     cw.setdefault(mapped, []).append(
-                        (control["id"], control.get("title", control["id"]))
+                        (control["id"], control.get("title", control["id"]), ev_reqs)
                     )
-            # Raise only if no control is code-observable AND no control is manual.
-            # A pack with only manual entries is valid (assessment: manual covers them).
             has_manual = any(c.get("assessment") == "manual" for c in pack["controls"])
             if not cw and not has_manual:
                 raise ValueError(
@@ -163,12 +143,14 @@ def map_findings(
             hit = check_index.get((f.engine, f.check_id))
             if not hit:
                 continue
-            canonical_control_id, canonical_title = hit
+            canonical_control_id, canonical_title, canon_ev_reqs = hit
             if crosswalk_id:
-                for control_id, title in cw.get(canonical_control_id, []):
-                    results.append(ControlFinding(f, fw, control_id, title))
+                for control_id, title, fw_ev_reqs in cw.get(canonical_control_id, []):
+                    results.append(ControlFinding(f, fw, control_id, title, fw_ev_reqs))
             else:
                 results.append(
-                    ControlFinding(f, fw, canonical_control_id, canonical_title)
+                    ControlFinding(
+                        f, fw, canonical_control_id, canonical_title, canon_ev_reqs
+                    )
                 )
     return results

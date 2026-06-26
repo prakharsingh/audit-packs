@@ -36,6 +36,7 @@ class ControlFinding:
     framework: str
     control_id: str
     control_title: str
+    evidence_requirements: tuple = ()
 
 
 class AssessmentStatus(str, Enum):

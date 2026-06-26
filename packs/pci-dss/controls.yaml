@@ -1,0 +1,50 @@
+schema_version: '2'
+framework: pci-dss
+title: PCI DSS v4.0 (Payment Card Industry Data Security Standard)
+crosswalk: nist-800-53
+controls:
+- id: Req-2.2
+  title: System Security Configuration
+  maps_to:
+  - SC-7
+  - AC-3
+  evidence_requirements: []
+- id: Req-3.4
+  title: Render PAN Unreadable Anywhere It Is Stored
+  maps_to:
+  - SC-13
+  - SC-28
+  evidence_requirements: []
+- id: Req-4.1
+  title: Strong Cryptography for Data in Transit
+  maps_to:
+  - SC-8
+  - SC-13
+  evidence_requirements: []
+- id: Req-7.1
+  title: Limit Access to System Components
+  maps_to:
+  - AC-3
+  - AC-6
+  evidence_requirements: []
+- id: Req-8.2
+  title: Proper Identification and Authentication
+  maps_to:
+  - IA-5
+  evidence_requirements: []
+- id: Req-10.1
+  title: Implement Audit Trails
+  maps_to:
+  - AU-2
+  evidence_requirements: []
+- id: Req-10.3
+  title: Protect Audit Trails from Destruction
+  maps_to:
+  - AU-2
+  evidence_requirements: []
+- id: Req-6.4
+  title: Address Common Security Vulnerabilities
+  maps_to:
+  - SC-7
+  - SC-8
+  evidence_requirements: []
