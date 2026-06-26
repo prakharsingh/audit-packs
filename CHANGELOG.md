@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.3.1 (2026-06-26)
+
+### Bug Fixes
+
+- **action**: Shorten description for marketplace compliance
+  ([`92e3b79`](https://github.com/prakharsingh/audit-packs/commit/92e3b79e7d8f0ae2674f8cb56c1f5d4b7d494153))
+
+
 ## v0.3.0 (2026-06-26)
 
 ### Bug Fixes
