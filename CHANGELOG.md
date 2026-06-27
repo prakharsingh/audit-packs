@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.5.3 (2026-06-27)
+
+### Bug Fixes
+
+- **ci**: Resolve permission denied on dist/ created by docker semantic release
+  ([`5e23a80`](https://github.com/prakharsingh/audit-packs/commit/5e23a804c99b1a31a27cb1bb128f3c7d051e66b2))
+
+
 ## v0.5.2 (2026-06-27)
 
 ### Bug Fixes
