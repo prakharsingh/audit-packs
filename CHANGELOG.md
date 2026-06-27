@@ -1,6 +1,21 @@
 # CHANGELOG
 
 
+## v0.4.0 (2026-06-27)
+
+### Features
+
+- Scanner coverage expansion — Trivy, tfsec, gitleaks
+  ([#12](https://github.com/prakharsingh/audit-packs/pull/12),
+  [`8910307`](https://github.com/prakharsingh/audit-packs/commit/891030719f45ab65c9f22d4029be194758ee926b))
+
+* docs: add scanner expansion design spec (Trivy + tfsec + gitleaks)
+
+Three new SARIF engine adapters + curated pack mappings for nist-800-53. Trivy covers fs + image
+  scanning; gitleaks covers IA-5; tfsec is opt-in (legacy overlap with Checkov/Trivy). CVE→SI-2
+  wildcard deferred to Phase 2.
+
+
 ## v0.3.1 (2026-06-26)
 
 ### Bug Fixes
