@@ -1,6 +1,23 @@
 # CHANGELOG
 
 
+## v0.5.6 (2026-06-27)
+
+### Bug Fixes
+
+- Trigger release for PyPI package descriptions
+  ([`3fceff4`](https://github.com/prakharsingh/audit-packs/commit/3fceff4cae44ddacfb4b596bde0ae9ebc915b5a2))
+
+### Documentation
+
+- Add readme and description metadata to all workspace packages for PyPI
+  ([#16](https://github.com/prakharsingh/audit-packs/pull/16),
+  [`29c19dc`](https://github.com/prakharsingh/audit-packs/commit/29c19dc669fe948504668a9872429d354977a09b))
+
+- Update PyPI publishing instructions for token secret
+  ([`2743438`](https://github.com/prakharsingh/audit-packs/commit/27434383ee431689bcd946b5b3f942bdb42d77b8))
+
+
 ## v0.5.5 (2026-06-27)
 
 ### Bug Fixes
