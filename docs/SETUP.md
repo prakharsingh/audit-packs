@@ -61,11 +61,38 @@ Run a full scan on your workspace:
 audit-packs --frameworks nist-800-53,soc2 --scan-mode full
 ```
 
-### Policy Validation
-To validate your custom mapping files or Semgrep rules structures before committing:
+### Extensible Scanner Plugins
+You can run custom scanners using declarative YAML files. Place your scanner configurations under `.audit-packs/scanners/` or custom folders and pass `--scanners-dir`:
 ```bash
-audit-packs --validate-policy
+audit-packs --frameworks nist-800-53,soc2 --scanners-dir ./my-scanners --scan-mode full
 ```
+
+### Framework Pack CLI Utility (`pack`)
+You can use the dedicated `pack` subcommand space for framework pack management, validation, testing, publishing, and installation:
+
+* **Initialize a pack**:
+  ```bash
+  audit-packs pack init <pack-id> [--output-dir packs]
+  ```
+* **Validate a pack schema**:
+  ```bash
+  audit-packs pack validate <pack-path>
+  ```
+* **Dry-run test mapping on test fixtures**:
+  ```bash
+  audit-packs pack test <pack-path> --fixture <fixture-dir> [--scanners-dir <dir>]
+  ```
+* **Package/Publish a pack**:
+  ```bash
+  audit-packs pack publish <pack-path> [--output-dir .]
+  ```
+* **Install a pack from URL/GitHub**:
+  ```bash
+  audit-packs pack install <source-url-or-git-repo> [--output-dir <installed-dir>]
+  # Examples:
+  # audit-packs pack install owner/repo@tag
+  # audit-packs pack install https://example.com/custom-pack-1.0.tar.gz
+  ```
 
 ---
 

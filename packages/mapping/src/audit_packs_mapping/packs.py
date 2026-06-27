@@ -13,7 +13,19 @@ def load_pack(path: str) -> dict:
 
 
 def _pack_path(packs_dir: str, pack_id: str) -> str:
-    return os.path.join(packs_dir, pack_id, "controls.yaml")
+    # 1. Check if packs_dir/pack_id exists
+    local_path = os.path.join(packs_dir, pack_id, "controls.yaml")
+    if os.path.exists(local_path):
+        return local_path
+
+    # 2. Check if it's installed in the user's home folder registry cache
+    installed_path = os.path.join(
+        os.path.expanduser("~"), ".audit-packs", "installed", pack_id, "controls.yaml"
+    )
+    if os.path.exists(installed_path):
+        return installed_path
+
+    return local_path
 
 
 def _canonical_index(pack: dict) -> dict[tuple[str, str], list[tuple[str, str, tuple]]]:

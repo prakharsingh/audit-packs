@@ -105,6 +105,7 @@ def analyze(
     trivy_image="",
     tfsec_enabled=False,
     gitleaks_enabled=False,
+    scanners_dir=None,
 ):
     """Run engines, enrich, adjudicate, score, and return ScoredFindings for diff-changed lines."""
     if ast_rules_dir and not os.path.isabs(ast_rules_dir):
@@ -142,6 +143,7 @@ def analyze(
             TrivyEngine,
             TfsecEngine,
             GitleaksEngine,
+            load_plugins,
         )
 
         checkov_task = asyncio.create_task(CheckovEngine().run_scan_async(repo_dir, {}))
@@ -180,6 +182,13 @@ def analyze(
             else None
         )
 
+        plugins = load_plugins(scanners_dir)
+        plugin_tasks = []
+        for p in plugins:
+            plugin_tasks.append(
+                (p.name, asyncio.create_task(p.run_scan_async(repo_dir, {})))
+            )
+
         tasks = [checkov_task, semgrep_task, ast_task]
         if codeql_task:
             tasks.append(codeql_task)
@@ -191,6 +200,11 @@ def analyze(
             tasks.append(tfsec_task)
         if gitleaks_task:
             tasks.append(gitleaks_task)
+
+        plugin_start_idx = len(tasks)
+        for _, p_task in plugin_tasks:
+            tasks.append(p_task)
+
         results = await asyncio.gather(*tasks)
 
         c_sarif = results[0]
@@ -210,6 +224,12 @@ def analyze(
         if tfsec_task:
             idx += 1
         gl_sarif = results[idx] if gitleaks_task else {"runs": []}
+        if gitleaks_task:
+            idx += 1
+
+        plugin_results = {}
+        for (p_name, _), res in zip(plugin_tasks, results[plugin_start_idx:]):
+            plugin_results[p_name] = res
 
         return (
             c_sarif,
@@ -220,6 +240,7 @@ def analyze(
             t_img_sarif,
             tf_sarif,
             gl_sarif,
+            plugin_results,
         )
 
     try:
@@ -235,6 +256,7 @@ def analyze(
             trivy_img_sarif,
             tfsec_sarif,
             gitleaks_sarif,
+            plugin_sarifs,
         ) = asyncio.run(coro)
     except RuntimeError:
         try:
@@ -255,6 +277,13 @@ def analyze(
         )
         tfsec_sarif = run_tfsec(repo_dir) if tfsec_enabled else {"runs": []}
         gitleaks_sarif = run_gitleaks(repo_dir) if gitleaks_enabled else {"runs": []}
+
+        from audit_packs_action.engines import load_plugins
+
+        plugins = load_plugins(scanners_dir)
+        plugin_sarifs = {}
+        for p in plugins:
+            plugin_sarifs[p.name] = p.run_scan(repo_dir, {})
     except Exception:
         try:
             coro.close()
@@ -297,6 +326,11 @@ def analyze(
     if gitleaks_sarif.get("runs"):
         rule_confidences.update(extract_rule_confidences(gitleaks_sarif, "gitleaks"))
         findings += sarif_to_findings(gitleaks_sarif, "gitleaks")
+
+    for p_name, p_sarif in plugin_sarifs.items():
+        if p_sarif.get("runs"):
+            rule_confidences.update(extract_rule_confidences(p_sarif, p_name))
+            findings += sarif_to_findings(p_sarif, p_name)
 
     for agent in agents:
         agent_sarif = agent.detect(changed_file_texts)
@@ -406,6 +440,7 @@ def assess(
     trivy_image="",
     tfsec_enabled=False,
     gitleaks_enabled=False,
+    scanners_dir=None,
 ):
     """Run engines over the full workspace and return ControlStatus objects.
 
@@ -446,6 +481,7 @@ def assess(
             TrivyEngine,
             TfsecEngine,
             GitleaksEngine,
+            load_plugins,
         )
 
         checkov_task = asyncio.create_task(CheckovEngine().run_scan_async(repo_dir, {}))
@@ -478,6 +514,13 @@ def assess(
             else None
         )
 
+        plugins = load_plugins(scanners_dir)
+        plugin_tasks = []
+        for p in plugins:
+            plugin_tasks.append(
+                (p.name, asyncio.create_task(p.run_scan_async(repo_dir, {})))
+            )
+
         tasks = [checkov_task, semgrep_task, ast_task]
         if trivy_fs_task:
             tasks.append(trivy_fs_task)
@@ -487,6 +530,11 @@ def assess(
             tasks.append(tfsec_task)
         if gitleaks_task:
             tasks.append(gitleaks_task)
+
+        plugin_start_idx = len(tasks)
+        for _, p_task in plugin_tasks:
+            tasks.append(p_task)
+
         results = await asyncio.gather(*tasks)
 
         c_sarif, s_sarif, a_sarif = results[0], results[1], results[2]
@@ -501,8 +549,14 @@ def assess(
         if tfsec_task:
             idx += 1
         gl = results[idx] if gitleaks_task else {"runs": []}
+        if gitleaks_task:
+            idx += 1
 
-        return c_sarif, s_sarif, a_sarif, t_fs, t_img, tf, gl
+        plugin_results = {}
+        for (p_name, _), res in zip(plugin_tasks, results[plugin_start_idx:]):
+            plugin_results[p_name] = res
+
+        return c_sarif, s_sarif, a_sarif, t_fs, t_img, tf, gl, plugin_results
 
     try:
         import asyncio
@@ -516,6 +570,7 @@ def assess(
             trivy_img_sarif,
             tfsec_sarif,
             gitleaks_sarif,
+            plugin_sarifs,
         ) = asyncio.run(coro)
     except RuntimeError:
         try:
@@ -533,6 +588,13 @@ def assess(
         )
         tfsec_sarif = run_tfsec(repo_dir) if tfsec_enabled else {"runs": []}
         gitleaks_sarif = run_gitleaks(repo_dir) if gitleaks_enabled else {"runs": []}
+
+        from audit_packs_action.engines import load_plugins
+
+        plugins = load_plugins(scanners_dir)
+        plugin_sarifs = {}
+        for p in plugins:
+            plugin_sarifs[p.name] = p.run_scan(repo_dir, {})
     except Exception:
         try:
             coro.close()
@@ -571,6 +633,11 @@ def assess(
     if gitleaks_sarif.get("runs"):
         rule_confidences.update(extract_rule_confidences(gitleaks_sarif, "gitleaks"))
         findings += sarif_to_findings(gitleaks_sarif, "gitleaks")
+
+    for p_name, p_sarif in plugin_sarifs.items():
+        if p_sarif.get("runs"):
+            rule_confidences.update(extract_rule_confidences(p_sarif, p_name))
+            findings += sarif_to_findings(p_sarif, p_name)
 
     for agent in agents:
         agent_sarif = agent.detect(all_file_texts)
@@ -1046,7 +1113,489 @@ def print_local_coverage_matrix(control_statuses):
         print("-" * 75)
 
 
+def pack_init(pack_id: str, output_dir: str) -> int:
+    import json
+
+    target_dir = os.path.join(output_dir, pack_id)
+    if os.path.exists(target_dir):
+        print(f"Error: Target directory {target_dir} already exists.")
+        return 1
+
+    os.makedirs(os.path.join(target_dir, "rules"), exist_ok=True)
+    os.makedirs(os.path.join(target_dir, "agents"), exist_ok=True)
+
+    controls_content = f"""schema_version: "2"
+framework: "{pack_id}"
+title: "Custom Compliance Framework {pack_id}"
+crosswalk: nist-800-53
+controls:
+  - id: CP-1.1
+    title: "Example Automated Control"
+    maps_to:
+      - SC-13
+    evidence_requirements:
+      - "S3 bucket encryption must be enabled"
+  - id: CP-1.2
+    title: "Example Governance Policy"
+    assessment: manual
+"""
+    with open(os.path.join(target_dir, "controls.yaml"), "w") as fh:
+        fh.write(controls_content)
+
+    metadata = {
+        "schema_version": "2",
+        "id": pack_id,
+        "version": "0.1.0",
+        "title": f"Custom Compliance Framework {pack_id}",
+        "publisher": "Developer",
+        "dependencies": {"nist-800-53": ">=5.0.0"},
+    }
+    with open(os.path.join(target_dir, "metadata.json"), "w") as fh:
+        json.dump(metadata, fh, indent=2)
+
+    print(f"Successfully initialized framework pack '{pack_id}' at {target_dir}")
+    print("Files created:")
+    print(f"  - {os.path.join(target_dir, 'controls.yaml')} (Control mappings)")
+    print(f"  - {os.path.join(target_dir, 'metadata.json')} (Pack metadata)")
+    print(f"  - {os.path.join(target_dir, 'rules/')} (Custom Semgrep rules)")
+    print(f"  - {os.path.join(target_dir, 'agents/')} (Custom detection agents)")
+    return 0
+
+
+def pack_validate(pack_path: str) -> int:
+    import json
+    import yaml
+
+    controls_file = os.path.join(pack_path, "controls.yaml")
+    if not os.path.exists(controls_file):
+        print(f"Error: {controls_file} does not exist.")
+        return 1
+
+    try:
+        with open(controls_file) as fh:
+            data = yaml.safe_load(fh)
+    except Exception as exc:
+        print(f"Error: Failed to parse {controls_file}: {exc}")
+        return 1
+
+    if not isinstance(data, dict):
+        print("Error: controls.yaml must be a dictionary at the top level.")
+        return 1
+
+    errors = []
+
+    # Required keys
+    for req in ("schema_version", "framework", "title", "controls"):
+        if req not in data:
+            errors.append(f"Missing required top-level key: {req}")
+
+    if errors:
+        for err in errors:
+            print(f"Validation Error: {err}")
+        return 1
+
+    controls = data.get("controls")
+    if not isinstance(controls, list):
+        print("Validation Error: 'controls' key must be a list.")
+        return 1
+
+    # Crosswalk check
+    crosswalk = data.get("crosswalk")
+    if crosswalk:
+        if crosswalk != "nist-800-53":
+            print(
+                f"Validation Warning: non-standard crosswalk: '{crosswalk}' (expected 'nist-800-53')"
+            )
+
+        parent_dir = os.path.dirname(os.path.abspath(pack_path))
+        nist_file = os.path.join(parent_dir, "nist-800-53", "controls.yaml")
+        if not os.path.exists(nist_file):
+            nist_file = os.path.join(
+                os.getcwd(), "packs", "nist-800-53", "controls.yaml"
+            )
+
+        if os.path.exists(nist_file):
+            try:
+                with open(nist_file) as fh:
+                    nist_data = yaml.safe_load(fh)
+                nist_control_ids = {c["id"] for c in nist_data.get("controls", [])}
+
+                for idx, c in enumerate(controls):
+                    if not isinstance(c, dict):
+                        print(
+                            f"Validation Error: Control at index {idx} is not a dictionary."
+                        )
+                        return 1
+                    cid = c.get("id", f"index {idx}")
+                    maps_to = c.get("maps_to", [])
+                    if isinstance(maps_to, str):
+                        maps_to = [maps_to]
+                    for target in maps_to:
+                        if target not in nist_control_ids:
+                            errors.append(
+                                f"Control '{cid}' maps to non-existent NIST control: '{target}'"
+                            )
+            except Exception as exc:
+                print(
+                    f"Validation Warning: Could not load nist-800-53 pack for crosswalk validation: {exc}"
+                )
+        else:
+            print(
+                "Validation Warning: nist-800-53 pack controls.yaml not found; skipping crosswalk ID checks."
+            )
+
+    # Check metadata.json
+    metadata_file = os.path.join(pack_path, "metadata.json")
+    if os.path.exists(metadata_file):
+        try:
+            with open(metadata_file) as fh:
+                meta = json.load(fh)
+            if not isinstance(meta, dict):
+                errors.append("metadata.json must be a JSON object.")
+            else:
+                for req in ("schema_version", "id", "version", "title"):
+                    if req not in meta:
+                        errors.append(f"metadata.json missing required field: '{req}'")
+        except Exception as exc:
+            errors.append(f"Failed to parse metadata.json: {exc}")
+
+    if errors:
+        print(f"\nFound {len(errors)} validation errors:")
+        for err in errors:
+            print(f"  - {err}")
+        return 1
+
+    print(f"Framework pack at {pack_path} is VALID!")
+    return 0
+
+
+def pack_test(pack_path: str, fixture_dir: str, scanners_dir: str = None) -> int:
+    import yaml
+
+    if not os.path.exists(pack_path):
+        print(f"Error: Pack directory {pack_path} does not exist.")
+        return 1
+    if not os.path.exists(fixture_dir):
+        print(f"Error: Fixture directory {fixture_dir} does not exist.")
+        return 1
+
+    controls_file = os.path.join(pack_path, "controls.yaml")
+    try:
+        with open(controls_file) as fh:
+            pack_data = yaml.safe_load(fh)
+    except Exception as exc:
+        print(f"Error loading pack controls.yaml: {exc}")
+        return 1
+
+    framework = pack_data.get("framework")
+    if not framework:
+        print("Error: Pack does not define a framework key.")
+        return 1
+
+    print(
+        f"Running dry-run mapping test for framework '{framework}' on fixture '{fixture_dir}'..."
+    )
+
+    parent_dir = os.path.dirname(os.path.abspath(pack_path))
+
+    try:
+        from audit_packs_action.engines import (
+            run_checkov,
+            run_semgrep,
+            load_plugins,
+        )
+        from audit_packs_core.normalize import sarif_to_findings
+
+        findings = []
+
+        try:
+            c_sarif = run_checkov(fixture_dir)
+            findings += sarif_to_findings(c_sarif, "checkov")
+        except Exception:
+            pass
+
+        rules_path = os.path.join(os.getcwd(), "rules")
+        if not os.path.exists(rules_path):
+            rules_path = "/app/rules"
+        try:
+            s_sarif = run_semgrep(fixture_dir, rules_path)
+            findings += sarif_to_findings(s_sarif, "semgrep")
+        except Exception:
+            pass
+
+        plugins = load_plugins(scanners_dir)
+        for p in plugins:
+            try:
+                p_sarif = p.run_scan(fixture_dir, {})
+                findings += sarif_to_findings(p_sarif, p.name)
+            except Exception:
+                pass
+
+        from audit_packs_mapping.packs import map_findings
+
+        mapped = map_findings(findings, parent_dir, [framework])
+
+        print("\nTest Scan Results Mapping Table:")
+        print("-" * 110)
+        print(
+            f"| {'Engine':<12} | {'Check ID':<25} | {'Control ID':<12} | {'Control Title':<45} |"
+        )
+        print("-" * 110)
+        if not mapped:
+            print(f"| {'(No findings mapped)':^106} |")
+        for cf in mapped:
+            title_trunc = cf.control_title[:45]
+            print(
+                f"| {cf.finding.engine:<12} | {cf.finding.check_id:<25} | {cf.control_id:<12} | {title_trunc:<45} |"
+            )
+        print("-" * 110)
+        print(f"Total mapped findings: {len(mapped)}")
+
+    except Exception as exc:
+        print(f"Error executing test run: {exc}")
+        return 1
+
+    return 0
+
+
+def pack_publish(pack_path: str, output_dir: str) -> int:
+    import json
+    import tarfile
+    import yaml
+
+    if not os.path.exists(pack_path):
+        print(f"Error: Pack directory {pack_path} does not exist.")
+        return 1
+
+    controls_file = os.path.join(pack_path, "controls.yaml")
+    if not os.path.exists(controls_file):
+        print(f"Error: {controls_file} does not exist.")
+        return 1
+
+    try:
+        with open(controls_file) as fh:
+            data = yaml.safe_load(fh)
+    except Exception as exc:
+        print(f"Error parsing controls.yaml: {exc}")
+        return 1
+
+    framework = data.get("framework")
+    if not framework:
+        print("Error: Pack controls.yaml is missing the 'framework' key.")
+        return 1
+
+    version = "0.1.0"
+    metadata_file = os.path.join(pack_path, "metadata.json")
+    if os.path.exists(metadata_file):
+        try:
+            with open(metadata_file) as fh:
+                meta = json.load(fh)
+                version = meta.get("version", version)
+        except Exception:
+            pass
+
+    tarball_name = f"{framework}-{version}.tar.gz"
+    tarball_path = os.path.join(output_dir, tarball_name)
+
+    print(f"Packaging compliance pack '{framework}' version {version}...")
+    try:
+        with tarfile.open(tarball_path, "w:gz") as tar:
+            for item in ("controls.yaml", "metadata.json", "rules", "agents"):
+                item_path = os.path.join(pack_path, item)
+                if os.path.exists(item_path):
+                    tar.add(item_path, arcname=item)
+        print(f"Successfully packaged framework pack to {tarball_path}")
+    except Exception as exc:
+        print(f"Error packaging framework pack: {exc}")
+        return 1
+
+    return 0
+
+
+def pack_install(source: str, output_dir: str = None) -> int:
+    import urllib.request
+    import tarfile
+    import tempfile
+    import shutil
+    import yaml
+
+    if not output_dir:
+        output_dir = os.path.join(os.path.expanduser("~"), ".audit-packs", "installed")
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    url = source
+    if not (source.startswith("http://") or source.startswith("https://")):
+        if os.path.exists(source):
+            tarball_path = source
+            url = None
+        elif "/" in source:
+            parts = source.split("@")
+            repo_part = parts[0]
+            tag = parts[1] if len(parts) > 1 else "main"
+            url = f"https://github.com/{repo_part}/archive/refs/tags/{tag}.tar.gz"
+            print(f"Resolving GitHub reference '{source}' to {url}")
+        else:
+            print(f"Error: Local file '{source}' not found or is not a valid tarball.")
+            return 1
+
+    if url:
+        print(f"Downloading pack from {url}...")
+        try:
+            temp_fd, tarball_path = tempfile.mkstemp(suffix=".tar.gz")
+            os.close(temp_fd)
+            req = urllib.request.Request(
+                url, headers={"User-Agent": "audit-packs-cli/2.0"}
+            )
+            with urllib.request.urlopen(req) as response, open(
+                tarball_path, "wb"
+            ) as out_file:
+                shutil.copyfileobj(response, out_file)
+        except Exception as exc:
+            if "/" in source and "@" in source and "refs/tags/" in url:
+                fallback_url = url.replace("refs/tags/", "refs/heads/")
+                print(
+                    f"Tag download failed. Trying fallback branch URL: {fallback_url}"
+                )
+                try:
+                    req = urllib.request.Request(
+                        fallback_url, headers={"User-Agent": "audit-packs-cli/2.0"}
+                    )
+                    with urllib.request.urlopen(req) as response, open(
+                        tarball_path, "wb"
+                    ) as out_file:
+                        shutil.copyfileobj(response, out_file)
+                except Exception as exc_fallback:
+                    print(f"Error downloading pack: {exc_fallback}")
+                    return 1
+            else:
+                print(f"Error downloading pack: {exc}")
+                return 1
+
+    print("Extracting and validating pack package...")
+    try:
+        with tempfile.TemporaryDirectory() as extract_tmp:
+            with tarfile.open(tarball_path, "r:gz") as tar:
+                tar.extractall(path=extract_tmp)
+
+            controls_src_path = None
+            for root, dirs, files in os.walk(extract_tmp):
+                if "controls.yaml" in files:
+                    controls_src_path = os.path.join(root, "controls.yaml")
+                    break
+
+            if not controls_src_path:
+                print(
+                    "Error: Extract failed. controls.yaml was not found inside the package."
+                )
+                return 1
+
+            pack_root = os.path.dirname(controls_src_path)
+            with open(controls_src_path) as fh:
+                data = yaml.safe_load(fh) or {}
+            framework = data.get("framework")
+            if not framework:
+                print("Error: Pack controls.yaml is missing the 'framework' ID.")
+                return 1
+
+            target_install_dir = os.path.join(output_dir, framework)
+            if os.path.exists(target_install_dir):
+                print(
+                    f"Warning: Overwriting existing installation at {target_install_dir}"
+                )
+                shutil.rmtree(target_install_dir)
+
+            shutil.copytree(pack_root, target_install_dir)
+            print(
+                f"Successfully installed framework pack '{framework}' to {target_install_dir}"
+            )
+    except Exception as exc:
+        print(f"Error extracting pack package: {exc}")
+        return 1
+    finally:
+        if url and os.path.exists(tarball_path):
+            try:
+                os.remove(tarball_path)
+            except OSError:
+                pass
+
+    return 0
+
+
+def handle_pack_subcommand(args_list: list[str]) -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="audit-packs framework pack utilities."
+    )
+    subparsers = parser.add_subparsers(dest="cmd", required=True)
+
+    init_parser = subparsers.add_parser("init", help="Initialize a new framework pack")
+    init_parser.add_argument(
+        "pack_id", help="The unique ID of the framework pack (e.g. custom-hipaa)"
+    )
+    init_parser.add_argument(
+        "--output-dir",
+        default="packs",
+        help="Output directory to create the pack folder in",
+    )
+
+    val_parser = subparsers.add_parser(
+        "validate", help="Validate a framework pack directory"
+    )
+    val_parser.add_argument("pack_path", help="Path to the framework pack directory")
+
+    test_parser = subparsers.add_parser(
+        "test", help="Test pack mappings against a target fixture"
+    )
+    test_parser.add_argument("pack_path", help="Path to the framework pack directory")
+    test_parser.add_argument(
+        "--fixture", required=True, help="Path to target directory of scan fixtures"
+    )
+    test_parser.add_argument(
+        "--scanners-dir", default=None, help="Optional custom scanners directory"
+    )
+
+    pub_parser = subparsers.add_parser(
+        "publish", help="Package a framework pack for publishing"
+    )
+    pub_parser.add_argument("pack_path", help="Path to the framework pack directory")
+    pub_parser.add_argument(
+        "--output-dir", default=".", help="Directory to save the packaged tarball"
+    )
+
+    inst_parser = subparsers.add_parser(
+        "install", help="Install a framework pack from a URL or GitHub"
+    )
+    inst_parser.add_argument(
+        "source",
+        help="The source URL, GitHub repo (owner/repo@version), or path to local tarball",
+    )
+    inst_parser.add_argument(
+        "--output-dir", default=None, help="Custom installation target directory"
+    )
+
+    parsed = parser.parse_args(args_list)
+
+    if parsed.cmd == "init":
+        return pack_init(parsed.pack_id, parsed.output_dir)
+    elif parsed.cmd == "validate":
+        return pack_validate(parsed.pack_path)
+    elif parsed.cmd == "test":
+        return pack_test(parsed.pack_path, parsed.fixture, parsed.scanners_dir)
+    elif parsed.cmd == "publish":
+        return pack_publish(parsed.pack_path, parsed.output_dir)
+    elif parsed.cmd == "install":
+        return pack_install(parsed.source, parsed.output_dir)
+
+    return 0
+
+
 def main() -> int:
+    import sys
+
+    if len(sys.argv) > 1 and sys.argv[1] == "pack":
+        return handle_pack_subcommand(sys.argv[2:])
     import json as _json
     import argparse
     from audit_packs_ai.adjudicate import load_model_config, AdjudicationMode
@@ -1137,6 +1686,11 @@ def main() -> int:
         help="Enable gitleaks secret detection",
     )
     parser.add_argument(
+        "--scanners-dir",
+        default=os.environ.get("SCANNERS_DIR"),
+        help="Directory containing declarative scanner plugins",
+    )
+    parser.add_argument(
         "--init",
         action="store_true",
         help="Interactive configuration wizard to bootstrap compliance",
@@ -1193,6 +1747,18 @@ def main() -> int:
             rules_path = candidate
         else:
             rules_path = "/app/rules"
+
+    scanners_dir = args.scanners_dir
+    if not scanners_dir or not os.path.exists(scanners_dir):
+        candidate = os.path.join(args.workspace, ".audit-packs/scanners")
+        if os.path.exists(candidate):
+            scanners_dir = candidate
+        else:
+            candidate = os.path.join(args.workspace, "scanners")
+            if os.path.exists(candidate):
+                scanners_dir = candidate
+            else:
+                scanners_dir = None
 
     if args.validate_policy:
         return validate_policies(packs_dir, rules_path)
@@ -1331,6 +1897,7 @@ def main() -> int:
             trivy_image=trivy_image,
             tfsec_enabled=tfsec_enabled,
             gitleaks_enabled=gitleaks_enabled,
+            scanners_dir=scanners_dir,
         )
         from audit_packs_action.report import build_comments, build_summary_comment
 
@@ -1377,6 +1944,7 @@ def main() -> int:
             trivy_image=trivy_image,
             tfsec_enabled=tfsec_enabled,
             gitleaks_enabled=gitleaks_enabled,
+            scanners_dir=scanners_dir,
         )
 
         if not repo:
