@@ -2,6 +2,7 @@
 name = "audit-packs"
 version = "0.5.5"
 description = "GitHub Action that maps IaC security findings to compliance framework controls and posts evidence-backed inline PR review comments. Supports Checkov, Semgrep, CodeQL, Trivy, tfsec, and gitleaks."
+readme = "README.md"
 license = { text = "Apache-2.0" }
 requires-python = ">=3.11"
 keywords = [

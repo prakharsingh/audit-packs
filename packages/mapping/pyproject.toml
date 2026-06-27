@@ -2,6 +2,7 @@
 name = "audit-packs-mapping"
 version = "0.1.1"
 description = "Compliance mapping, coverage, and OSCAL export for audit-packs"
+readme = "README.md"
 license = { text = "Apache-2.0" }
 requires-python = ">=3.11"
 dependencies = ["audit-packs-core>=0.1.1", "PyYAML>=6.0"]
