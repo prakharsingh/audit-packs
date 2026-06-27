@@ -60,6 +60,14 @@ inputs:
     description: "Path to Tree-sitter AST rule scripts directory (Phase 2 — reserved; ignored in Phase 1)."
     default: "ast-rules"
 
+  trivy-enabled:
+    description: "Run Trivy filesystem scan for IaC misconfigs (container image scan also via trivy-image)"
+    default: "true"
+
+  trivy-image:
+    description: "Docker image tag to scan with Trivy (e.g. myapp:latest). Empty = skip image scan."
+    default: ""
+
   fail-on:
     description: "Minimum severity that blocks the PR: low | medium | high | critical"
     default: "high"
@@ -136,5 +144,7 @@ runs:
     EMIT_SARIF:           ${{ inputs.emit-sarif }}
     CODEQL_SARIF_DIR:     ${{ inputs.codeql-sarif }}
     AST_RULES_DIR:        ${{ inputs.ast-rules }}
+    TRIVY_ENABLED:        ${{ inputs.trivy-enabled }}
+    TRIVY_IMAGE:          ${{ inputs.trivy-image }}
     GITHUB_TOKEN:         ${{ github.token }}
     PR_NUMBER:            ${{ github.event.pull_request.number }}

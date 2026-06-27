@@ -25,6 +25,8 @@ from audit_packs_action.engines import (
     run_git_diff,
     read_codeql_sarif,
     run_ast_rules,
+    run_trivy_fs,
+    run_trivy_image,
 )
 from audit_packs_core.normalize import sarif_to_findings
 from audit_packs_core.diff import parse_unified_diff
@@ -97,6 +99,8 @@ def analyze(
     weights=None,
     threshold=0.70,
     ast_rules_dir="ast-rules",
+    trivy_enabled=False,
+    trivy_image="",
 ):
     """Run engines, enrich, adjudicate, score, and return ScoredFindings for diff-changed lines."""
     if ast_rules_dir and not os.path.isabs(ast_rules_dir):
@@ -131,6 +135,7 @@ def analyze(
             SemgrepEngine,
             CodeQLEngine,
             ASTEngine,
+            TrivyEngine,
         )
 
         checkov_task = asyncio.create_task(CheckovEngine().run_scan_async(repo_dir, {}))
@@ -146,21 +151,53 @@ def analyze(
         ast_task = asyncio.create_task(
             ASTEngine().run_scan_async(repo_dir, {"rules_dir": ast_rules_dir})
         )
+        trivy_fs_task = (
+            asyncio.create_task(TrivyEngine().run_scan_async(repo_dir, {}))
+            if trivy_enabled
+            else None
+        )
+        trivy_img_task = (
+            asyncio.create_task(
+                TrivyEngine().run_scan_async("", {"image": trivy_image})
+            )
+            if (trivy_enabled and trivy_image)
+            else None
+        )
 
         tasks = [checkov_task, semgrep_task, ast_task]
         if codeql_task:
             tasks.append(codeql_task)
+        if trivy_fs_task:
+            tasks.append(trivy_fs_task)
+        if trivy_img_task:
+            tasks.append(trivy_img_task)
         results = await asyncio.gather(*tasks)
-        c_sarif, s_sarif, a_sarif = results[0], results[1], results[2]
-        q_sarif = results[3] if codeql_task else {"runs": []}
-        return c_sarif, s_sarif, q_sarif, a_sarif
+
+        c_sarif = results[0]
+        s_sarif = results[1]
+        a_sarif = results[2]
+        idx = 3
+        q_sarif = results[idx] if codeql_task else {"runs": []}
+        if codeql_task:
+            idx += 1
+        t_fs_sarif = results[idx] if trivy_fs_task else {"runs": []}
+        if trivy_fs_task:
+            idx += 1
+        t_img_sarif = results[idx] if trivy_img_task else {"runs": []}
+
+        return c_sarif, s_sarif, q_sarif, a_sarif, t_fs_sarif, t_img_sarif
 
     try:
         import asyncio
 
-        checkov_sarif, semgrep_sarif, codeql_sarif, ast_sarif = asyncio.run(
-            _run_scans_parallel()
-        )
+        (
+            checkov_sarif,
+            semgrep_sarif,
+            codeql_sarif,
+            ast_sarif,
+            trivy_fs_sarif,
+            trivy_img_sarif,
+        ) = asyncio.run(_run_scans_parallel())
     except RuntimeError:
         checkov_sarif = run_checkov(repo_dir)
         semgrep_sarif = run_semgrep(repo_dir, rules_path)
@@ -168,6 +205,12 @@ def analyze(
             read_codeql_sarif(codeql_sarif_dir) if codeql_sarif_dir else {"runs": []}
         )
         ast_sarif = run_ast_rules(repo_dir, ast_rules_dir)
+        trivy_fs_sarif = run_trivy_fs(repo_dir) if trivy_enabled else {"runs": []}
+        trivy_img_sarif = (
+            run_trivy_image(trivy_image)
+            if (trivy_enabled and trivy_image)
+            else {"runs": []}
+        )
 
     # Run all registered detection agents for Phase 2
     from audit_packs_evidence.agents import build_agents
@@ -192,6 +235,11 @@ def analyze(
     findings += sarif_to_findings(semgrep_sarif, "semgrep")
     findings += sarif_to_findings(codeql_sarif, "codeql")
     findings += sarif_to_findings(ast_sarif, "ast")
+    trivy_runs = trivy_fs_sarif.get("runs", []) + trivy_img_sarif.get("runs", [])
+    if trivy_runs:
+        merged_trivy = {"runs": trivy_runs}
+        rule_confidences.update(extract_rule_confidences(merged_trivy, "trivy"))
+        findings += sarif_to_findings(merged_trivy, "trivy")
 
     for agent in agents:
         agent_sarif = agent.detect(changed_file_texts)
@@ -297,6 +345,8 @@ def assess(
     threshold=0.70,
     codeql_sarif_dir="",
     ast_rules_dir="ast-rules",
+    trivy_enabled=False,
+    trivy_image="",
 ):
     """Run engines over the full workspace and return ControlStatus objects.
 
@@ -330,7 +380,12 @@ def assess(
     # Run detection engines in parallel using async engines
     async def _run_scans_parallel_assess():
         import asyncio
-        from audit_packs_action.engines import CheckovEngine, SemgrepEngine, ASTEngine
+        from audit_packs_action.engines import (
+            CheckovEngine,
+            SemgrepEngine,
+            ASTEngine,
+            TrivyEngine,
+        )
 
         checkov_task = asyncio.create_task(CheckovEngine().run_scan_async(repo_dir, {}))
         semgrep_task = asyncio.create_task(
@@ -339,22 +394,55 @@ def assess(
         ast_task = asyncio.create_task(
             ASTEngine().run_scan_async(repo_dir, {"rules_dir": ast_rules_dir})
         )
-
-        c_sarif, s_sarif, a_sarif = await asyncio.gather(
-            checkov_task, semgrep_task, ast_task
+        trivy_fs_task = (
+            asyncio.create_task(TrivyEngine().run_scan_async(repo_dir, {}))
+            if trivy_enabled
+            else None
         )
-        return c_sarif, s_sarif, a_sarif
+        trivy_img_task = (
+            asyncio.create_task(
+                TrivyEngine().run_scan_async("", {"image": trivy_image})
+            )
+            if (trivy_enabled and trivy_image)
+            else None
+        )
+
+        tasks = [checkov_task, semgrep_task, ast_task]
+        if trivy_fs_task:
+            tasks.append(trivy_fs_task)
+        if trivy_img_task:
+            tasks.append(trivy_img_task)
+        results = await asyncio.gather(*tasks)
+
+        c_sarif, s_sarif, a_sarif = results[0], results[1], results[2]
+        idx = 3
+        t_fs = results[idx] if trivy_fs_task else {"runs": []}
+        if trivy_fs_task:
+            idx += 1
+        t_img = results[idx] if trivy_img_task else {"runs": []}
+
+        return c_sarif, s_sarif, a_sarif, t_fs, t_img
 
     try:
         import asyncio
 
-        checkov_sarif, semgrep_sarif, ast_sarif = asyncio.run(
-            _run_scans_parallel_assess()
-        )
+        (
+            checkov_sarif,
+            semgrep_sarif,
+            ast_sarif,
+            trivy_fs_sarif,
+            trivy_img_sarif,
+        ) = asyncio.run(_run_scans_parallel_assess())
     except RuntimeError:
         checkov_sarif = run_checkov(repo_dir)
         semgrep_sarif = run_semgrep(repo_dir, rules_path)
         ast_sarif = run_ast_rules(repo_dir, ast_rules_dir)
+        trivy_fs_sarif = run_trivy_fs(repo_dir) if trivy_enabled else {"runs": []}
+        trivy_img_sarif = (
+            run_trivy_image(trivy_image)
+            if (trivy_enabled and trivy_image)
+            else {"runs": []}
+        )
 
     codeql_sarif = (
         read_codeql_sarif(codeql_sarif_dir) if codeql_sarif_dir else {"runs": []}
@@ -376,6 +464,11 @@ def assess(
     findings += sarif_to_findings(semgrep_sarif, "semgrep")
     findings += sarif_to_findings(codeql_sarif, "codeql")
     findings += sarif_to_findings(ast_sarif, "ast")
+    trivy_runs = trivy_fs_sarif.get("runs", []) + trivy_img_sarif.get("runs", [])
+    if trivy_runs:
+        merged_trivy = {"runs": trivy_runs}
+        rule_confidences.update(extract_rule_confidences(merged_trivy, "trivy"))
+        findings += sarif_to_findings(merged_trivy, "trivy")
 
     for agent in agents:
         agent_sarif = agent.detect(all_file_texts)
@@ -547,6 +640,8 @@ def main() -> int:
     ast_rules_dir = os.environ.get("AST_RULES_DIR", "ast-rules")
     if not os.path.isabs(ast_rules_dir):
         ast_rules_dir = os.path.join(workspace, ast_rules_dir)
+    trivy_enabled = os.environ.get("TRIVY_ENABLED", "false").lower() == "true"
+    trivy_image = os.environ.get("TRIVY_IMAGE", "")
 
     # Historical precision
     precision_path = os.path.join(".audit-cache", "precision.json")
@@ -609,6 +704,8 @@ def main() -> int:
             weights=weights,
             threshold=threshold,
             ast_rules_dir=ast_rules_dir,
+            trivy_enabled=trivy_enabled,
+            trivy_image=trivy_image,
         )
         from audit_packs_action.report import build_comments, build_summary_comment
 
@@ -645,6 +742,8 @@ def main() -> int:
             threshold=threshold,
             codeql_sarif_dir=codeql_sarif_dir,
             ast_rules_dir=ast_rules_dir,
+            trivy_enabled=trivy_enabled,
+            trivy_image=trivy_image,
         )
         if emit_oscal:
             oscal_path = os.path.join(workspace, "oscal.json")
