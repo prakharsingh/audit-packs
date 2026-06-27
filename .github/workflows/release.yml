@@ -55,12 +55,9 @@ jobs:
           python-version: '3.11'
           enable-cache: true
 
-      - name: Fix dist directory permissions
+      - name: Fix workspace permissions
         if: steps.semantic.outputs.released == 'true'
-        run: |
-          if [ -d dist ]; then
-            sudo chown -R $USER:$USER dist
-          fi
+        run: sudo chown -R $USER:$USER .
 
       - name: Build all packages
         if: steps.semantic.outputs.released == 'true'
