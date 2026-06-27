@@ -86,6 +86,15 @@ class CheckovEngine(BaseEngine):
                     ) from exc
 
                 returncode = proc.returncode
+            except FileNotFoundError:
+                import sys
+
+                print(
+                    "⚠️  checkov not found on PATH — skipping Checkov engine.\n"
+                    "   Install it with: pipx inject audit-packs checkov",
+                    file=sys.stderr,
+                )
+                return {"runs": []}
             except Exception as exc:
                 if not isinstance(exc, RuntimeError):
                     raise RuntimeError(
@@ -149,6 +158,15 @@ class SemgrepEngine(BaseEngine):
                 ) from exc
 
             returncode = proc.returncode
+        except FileNotFoundError:
+            import sys
+
+            print(
+                "⚠️  semgrep not found on PATH — skipping Semgrep engine.\n"
+                "   Install it with: pipx inject audit-packs semgrep",
+                file=sys.stderr,
+            )
+            return {"runs": []}
         except Exception as exc:
             if not isinstance(exc, RuntimeError):
                 raise RuntimeError(
