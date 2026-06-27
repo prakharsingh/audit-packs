@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.5.1 (2026-06-27)
+
+### Bug Fixes
+
+- **ci**: Use github_token input parameter in release workflow
+  ([`69d3ed2`](https://github.com/prakharsingh/audit-packs/commit/69d3ed2a1d0d5b2fe81c5c7b53b372f2b505063f))
+
+
 ## v0.5.0 (2026-06-27)
 
 ### Bug Fixes
