@@ -181,3 +181,36 @@ def test_map_findings_populates_evidence_requirements(tmp_path):
     assert len(cfs) == 1
     assert len(cfs[0].evidence_requirements) == 1
     assert cfs[0].evidence_requirements[0]["type"] == "code_snippet"
+
+
+# --- Trivy mappings ---
+
+
+def test_trivy_avd_maps_to_sc28():
+    cfs = map_findings(
+        [Finding("AVD-AWS-0132", "trivy", "main.tf", 5, "high", "msg", "ev")],
+        PACKS,
+        ["nist-800-53"],
+    )
+    assert len(cfs) == 1
+    assert cfs[0].control_id == "SC-28"
+
+
+def test_trivy_avd_maps_to_sc7():
+    cfs = map_findings(
+        [Finding("AVD-AWS-0107", "trivy", "main.tf", 5, "high", "msg", "ev")],
+        PACKS,
+        ["nist-800-53"],
+    )
+    assert len(cfs) >= 1
+    assert any(cf.control_id == "SC-7" for cf in cfs)
+
+
+def test_trivy_avd_maps_to_ia5():
+    cfs = map_findings(
+        [Finding("AVD-AWS-0025", "trivy", "main.tf", 5, "high", "msg", "ev")],
+        PACKS,
+        ["nist-800-53"],
+    )
+    assert len(cfs) >= 1
+    assert any(cf.control_id == "IA-5" for cf in cfs)

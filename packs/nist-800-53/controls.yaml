@@ -16,6 +16,7 @@ controls:
   title: Boundary Protection
   supported_scanners:
   - checkov
+  - trivy
   mappings:
   - engine: checkov
     check_id: CKV_AWS_24
@@ -25,6 +26,12 @@ controls:
     check_id: CKV_AWS_88
   - engine: checkov
     check_id: CKV_AWS_130
+  - engine: trivy
+    check_id: AVD-AWS-0107
+  - engine: trivy
+    check_id: AVD-AWS-0026
+  - engine: trivy
+    check_id: AVD-AWS-0175
   evidence_requirements: []
 - id: SC-8
   title: Transmission Confidentiality and Integrity
@@ -32,6 +39,7 @@ controls:
   - ast
   - checkov
   - semgrep
+  - trivy
   mappings:
   - engine: checkov
     check_id: CKV_AWS_2
@@ -47,12 +55,17 @@ controls:
     check_id: tls-enabled-false
   - engine: ast
     check_id: AST-004
+  - engine: trivy
+    check_id: AVD-AWS-0020
+  - engine: trivy
+    check_id: AVD-AWS-0123
   evidence_requirements: []
 - id: SC-12
   title: Cryptographic Key Establishment and Management
   supported_scanners:
   - checkov
   - fedramp-agent
+  - trivy
   mappings:
   - engine: checkov
     check_id: CKV_AWS_7
@@ -62,6 +75,8 @@ controls:
     check_id: CKV_AWS_211
   - engine: fedramp-agent
     check_id: FEDRAMP-002
+  - engine: trivy
+    check_id: AVD-AWS-0065
   evidence_requirements: []
 - id: SC-13
   title: Cryptographic Protection
@@ -70,6 +85,7 @@ controls:
   - dataflow-agent
   - fedramp-agent
   - semgrep
+  - trivy
   mappings:
   - engine: checkov
     check_id: CKV_AWS_19
@@ -83,6 +99,10 @@ controls:
     check_id: DFA-001
   - engine: fedramp-agent
     check_id: FEDRAMP-001
+  - engine: trivy
+    check_id: AVD-AWS-0020
+  - engine: trivy
+    check_id: AVD-AWS-0123
   evidence_requirements: []
 - id: SC-28
   title: Protection of Information at Rest
@@ -93,6 +113,7 @@ controls:
   - gdpr-agent
   - hipaa-agent
   - semgrep
+  - trivy
   mappings:
   - engine: checkov
     check_id: CKV_AWS_17
@@ -116,6 +137,16 @@ controls:
     check_id: HIPAA-001
   - engine: ast
     check_id: AST-001
+  - engine: trivy
+    check_id: AVD-AWS-0132
+  - engine: trivy
+    check_id: AVD-AWS-0088
+  - engine: trivy
+    check_id: AVD-AWS-0178
+  - engine: trivy
+    check_id: AVD-AWS-0083
+  - engine: trivy
+    check_id: AVD-AWS-0065
   evidence_requirements: []
 - id: AC-2
   title: Account Management
@@ -197,17 +228,23 @@ controls:
   supported_scanners:
   - checkov
   - semgrep
+  - trivy
   mappings:
   - engine: checkov
     check_id: CKV_AWS_6
   - engine: semgrep
     check_id: hardcoded-credential
+  - engine: trivy
+    check_id: AVD-AWS-0025
+  - engine: trivy
+    check_id: AVD-AWS-0057
   evidence_requirements: []
 - id: AU-2
   title: Audit Events
   supported_scanners:
   - checkov
   - soc2-agent
+  - trivy
   mappings:
   - engine: checkov
     check_id: CKV_AWS_67
@@ -217,6 +254,10 @@ controls:
     check_id: CKV_AWS_1
   - engine: soc2-agent
     check_id: SOC2-002
+  - engine: trivy
+    check_id: AVD-AWS-0001
+  - engine: trivy
+    check_id: AVD-AWS-0002
   evidence_requirements: []
 - id: AU-3
   title: Content of Audit Records
@@ -272,6 +313,7 @@ controls:
   title: Least Functionality
   supported_scanners:
   - checkov
+  - trivy
   mappings:
   - engine: checkov
     check_id: CKV_AWS_50
@@ -279,6 +321,8 @@ controls:
     check_id: CKV_AWS_115
   - engine: checkov
     check_id: CKV_AWS_120
+  - engine: trivy
+    check_id: AVD-AWS-0102
   evidence_requirements: []
 - id: SI-2
   title: Flaw Remediation
