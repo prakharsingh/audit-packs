@@ -130,6 +130,20 @@ jobs:
           fail-on: high
 ```
 
+## 📦 5. Automatic Extension Publishing
+
+To automate compilation, packaging, and publishing of the VS Code extension to the Visual Studio Marketplace and Open VSX Registry, the repository includes a `.github/workflows/publish-extension.yml` workflow.
+
+### Triggering the Workflow
+The workflow triggers automatically when a new GitHub **Release** is published (via `python-semantic-release` or manually) or can be run manually using `workflow_dispatch`.
+
+### Configuring Secrets
+To enable publishing, you must add the following Repository Secrets in your GitHub repository configuration:
+1. `VSCE_PAT`: Your Personal Access Token for the Visual Studio Marketplace (Publisher: `prakharsingh`).
+2. `OVSX_PAT`: Your Access Token for the Open VSX Registry.
+
+If these secrets are not configured, the publishing steps will be skipped, allowing the workflow to run safely without failing.
+
 ---
 
 ## 🔙 Links

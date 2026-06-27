@@ -13,6 +13,7 @@ __pycache__/
 # Build and packaging
 dist/
 build/
+out/
 *.egg-info/
 node_modules/
 
