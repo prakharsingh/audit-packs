@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.5.2 (2026-06-27)
+
+### Bug Fixes
+
+- **ci**: Fix semantic-release build command CWD setuptools collision
+  ([`93d0569`](https://github.com/prakharsingh/audit-packs/commit/93d0569705953f510860e27dbee397e31e093269))
+
+
 ## v0.5.1 (2026-06-27)
 
 ### Bug Fixes
