@@ -12,7 +12,7 @@ audit-packs-core = { workspace = true }
 audit-packs-mapping = { workspace = true }
 audit-packs-evidence = { workspace = true }
 audit-packs-ai = { workspace = true }
-audit-packs-action = { workspace = true }
+audit-packs = { workspace = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
