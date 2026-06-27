@@ -39,6 +39,9 @@ EOF
 echo "=== Running Docker Image Smoke Test ==="
 # GITHUB_WORKSPACE inside the container should be /github/workspace
 # We mount our temporary workspace directory to /github/workspace
+# The scan detects findings in the insecure.tf file, which trips the quality gate, returning exit code 1.
+# We disable pipefail/exit-on-error temporarily, capture the exit status, and ensure it's either 0 or 1.
+set +e
 docker run --rm \
   -e GITHUB_REPOSITORY="foo/bar" \
   -e GITHUB_TOKEN="mock-token" \
@@ -49,6 +52,14 @@ docker run --rm \
   -e GITHUB_WORKSPACE="/github/workspace" \
   -v "${WORKSPACE_DIR}:/github/workspace" \
   "${IMAGE_TAG}"
+EXIT_CODE=$?
+set -e
+
+if [ $EXIT_CODE -ne 0 ] && [ $EXIT_CODE -ne 1 ]; then
+    echo "FAIL: Docker run failed with unexpected exit code: $EXIT_CODE"
+    exit $EXIT_CODE
+fi
+
 
 echo "=== Verifying Output Files ==="
 # Check that files were created
