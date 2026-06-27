@@ -935,7 +935,7 @@ jobs:
           scan-mode: both
           adjudication-mode: off # Change to 'enforce' or 'advisory' to enable AI
         env:
-          GITHUB_TOKEN: ${{{{ secrets.GITHUB_TOKEN }}}}
+          GH_TOKEN: ${{{{ github.token }}}}
           # Un-comment if AI adjudication is enabled:
           # OPENAI_API_KEY: ${{{{ secrets.OPENAI_API_KEY }}}}
           # ANTHROPIC_API_KEY: ${{{{ secrets.ANTHROPIC_API_KEY }}}}
