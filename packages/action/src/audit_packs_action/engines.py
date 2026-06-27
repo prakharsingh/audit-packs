@@ -124,8 +124,20 @@ class SemgrepEngine(BaseEngine):
 
     async def run_scan_async(self, target: str, options: dict) -> dict:
         rules_path = options.get("rules_path")
-        if not rules_path:
+        if rules_path is None:
             raise ValueError("semgrep requires 'rules_path' in options")
+
+        # Validate rules path before invoking semgrep to give a clear message.
+        if not rules_path or not os.path.exists(rules_path):
+            import sys
+
+            print(
+                f"\n⚠️  semgrep rules path not found: {rules_path!r} — skipping Semgrep engine.\n"
+                "   Pass --rules-path <dir> or set RULES_PATH to a directory of .yaml rules.",
+                file=sys.stderr,
+            )
+            return {"runs": []}
+
         try:
             cmd = [
                 _resolve_executable("semgrep"),
@@ -173,6 +185,18 @@ class SemgrepEngine(BaseEngine):
                     f"Failed to spawn semgrep subprocess: {exc}"
                 ) from exc
             raise
+
+        # Exit code 7 means semgrep found no rules to run (e.g. empty dir,
+        # no .yaml files matching the config pattern).  Treat as a non-fatal
+        # skip rather than a hard error.
+        if returncode == 7:
+            import sys
+
+            print(
+                f"\n⚠️  semgrep found no rules in {rules_path!r} (exit 7) — skipping Semgrep engine.",
+                file=sys.stderr,
+            )
+            return {"runs": []}
 
         if returncode is not None and returncode >= 2:
             raise RuntimeError(

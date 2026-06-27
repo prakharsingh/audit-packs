@@ -36,3 +36,39 @@ Industry-specific `org-policy.yaml` templates that layer internal controls on to
 | `saas-startup.yaml` | General SaaS | `nist-800-53,soc2` |
 | `fintech.yaml` | Fintech / payments | `pci-dss,iso27001` |
 | `healthcare.yaml` | Health tech / HIPAA-covered | `hipaa,soc2` |
+
+## Local testing
+
+Run workflow configurations locally without a CI runner:
+
+```bash
+# Minimal — from any git repo; missing packs/rules warn and skip gracefully
+audit-packs --frameworks nist-800-53,soc2,gdpr
+
+# Full run — point at packs and rules from your audit-packs clone
+audit-packs \
+  --frameworks nist-800-53,soc2 \
+  --packs-dir ~/projects/audit-packs/packs \
+  --rules-path ~/projects/audit-packs/rules \
+  --scan-mode full
+
+# Simulate a specific workflow's settings (e.g. nist-fedramp.yml)
+audit-packs \
+  --frameworks nist-800-53,fedramp \
+  --packs-dir ~/projects/audit-packs/packs \
+  --rules-path ~/projects/audit-packs/rules \
+  --scan-mode both \
+  --fail-on medium
+```
+
+### Reinstall after source edits
+
+```bash
+# Reinstall only changed packages into the pipx venv
+pipx inject audit-packs ./packages/action ./packages/mapping --force
+
+# Full reset
+pipx uninstall audit-packs && pipx install ./packages/action --force
+pipx inject audit-packs \
+  ./packages/core ./packages/mapping ./packages/evidence ./packages/ai --force
+```

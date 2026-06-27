@@ -26,23 +26,33 @@ Before running `audit-packs`, make sure you have the following installed on your
 To run scans locally on your developer machine:
 
 ### Installation
-You can install the engine directly from PyPI:
+
+**Recommended — `pipx`** (isolated venv, always on PATH):
+```bash
+pipx install audit-packs
+
+# Inject optional scanners into the same venv:
+pipx inject audit-packs checkov semgrep
+```
+
+Or install into your active Python environment:
 ```bash
 pip install audit-packs
 ```
 
-Or you can install editably from source:
+Or install editably from source (for contributors):
 ```bash
 # Clone the repository
 git clone https://github.com/prakharsingh/audit-packs.git
 cd audit-packs
 
-# Install using uv (recommended)
+# Install all workspace packages via uv (recommended)
 uv sync
 
-# Or using pip
-pip install -e packages/core -e packages/mapping -e packages/evidence \
-            -e packages/ai -e packages/action[ai]
+# Or via pipx from source
+pipx install ./packages/action --force
+pipx inject audit-packs ./packages/core ./packages/mapping \
+                         ./packages/evidence ./packages/ai --force
 ```
 
 ### Onboarding Wizard
@@ -56,9 +66,49 @@ This wizard will create:
 - `packs/org-policy/controls.yaml` (Custom policy template)
 
 ### Local Scanning
-Run a full scan on your workspace:
+
+Run a scan from any git repository. The default Semgrep rules are bundled inside the python package, so the scan runs out-of-the-box using those default rules if no custom path is configured. Missing `--packs-dir` is warned and skipped gracefully:
+
 ```bash
-audit-packs --frameworks nist-800-53,soc2 --scan-mode full
+# Out-of-the-box run — uses detection agents & bundled default Semgrep rules; pack mapping skips if not configured
+audit-packs --frameworks nist-800-53,soc2,gdpr
+
+# Custom run with custom packs and custom Semgrep rules:
+audit-packs --frameworks nist-800-53,soc2 \
+            --packs-dir ~/projects/audit-packs/packs \
+            --rules-path /path/to/my/custom/rules
+
+# Use env vars to avoid repeating flags:
+export PACKS_DIR=~/projects/audit-packs/packs
+export RULES_PATH=/path/to/my/custom/rules
+audit-packs --frameworks nist-800-53,soc2
+```
+
+**Dev tip** — add a shell alias:
+```bash
+alias ap='audit-packs \
+  --packs-dir ~/projects/audit-packs/packs \
+  --rules-path ~/projects/audit-packs/rules'
+```
+
+### Reinstalling after source changes
+
+When you edit a package under `packages/`, reinstall it into the pipx venv:
+
+```bash
+# Reinstall only changed packages (fast)
+pipx inject audit-packs ./packages/action ./packages/mapping --force
+
+# Reinstall everything
+pipx inject audit-packs \
+  ./packages/action ./packages/core ./packages/mapping \
+  ./packages/evidence ./packages/ai --force
+
+# Full nuke + reinstall
+pipx uninstall audit-packs
+pipx install ./packages/action --force
+pipx inject audit-packs \
+  ./packages/core ./packages/mapping ./packages/evidence ./packages/ai --force
 ```
 
 ### Extensible Scanner Plugins

@@ -15,6 +15,9 @@ from __future__ import annotations
 
 import os
 import sys
+import itertools
+import threading
+import time
 from dataclasses import replace
 
 from audit_packs_ai.adjudicate import AdjudicationMode
@@ -44,6 +47,70 @@ from audit_packs_action.report import (
 )
 
 _VALID_SCAN_MODES = ("diff", "full", "both")
+
+
+class CliSpinner:
+    """Thread-based TTY spinner with status lines.  No-ops when not a terminal."""
+
+    _FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+    _COLORS = {
+        "cyan": "\033[96m",
+        "green": "\033[92m",
+        "yellow": "\033[93m",
+        "red": "\033[91m",
+        "bold": "\033[1m",
+        "reset": "\033[0m",
+    }
+
+    def __init__(self) -> None:
+        self._active = False
+        self._msg = ""
+        self._thread: threading.Thread | None = None
+        self._is_tty = sys.stderr.isatty()
+
+    def _c(self, color: str, text: str) -> str:
+        if not self._is_tty:
+            return text
+        return f"{self._COLORS.get(color, '')}{text}{self._COLORS['reset']}"
+
+    def _spin(self) -> None:
+        for frame in itertools.cycle(self._FRAMES):
+            if not self._active:
+                break
+            line = f"  {self._c('cyan', frame)} {self._msg}"
+            if self._is_tty:
+                sys.stderr.write(f"\r{line}\033[K")
+                sys.stderr.flush()
+            time.sleep(0.08)
+        if self._is_tty:
+            sys.stderr.write("\r\033[K")
+            sys.stderr.flush()
+
+    def start(self, msg: str) -> None:
+        self._msg = msg
+        self._active = True
+        self._thread = threading.Thread(target=self._spin, daemon=True)
+        self._thread.start()
+
+    def update(self, msg: str) -> None:
+        self._msg = msg
+
+    def stop(self, final_msg: str = "", color: str = "green") -> None:
+        self._active = False
+        if self._thread:
+            self._thread.join(timeout=0.5)
+        if final_msg:
+            icon = "✓" if color == "green" else "✗" if color == "red" else "•"
+            sys.stderr.write(f"  {self._c(color, icon)} {final_msg}\n")
+            sys.stderr.flush()
+
+    def info(self, msg: str, color: str = "cyan") -> None:
+        """Print an info line without disturbing the spinner."""
+        if self._is_tty:
+            sys.stderr.write("\r\033[K")
+        sys.stderr.write(f"  {self._c(color, '·')} {msg}\n")
+        sys.stderr.flush()
+
 
 _FRAMEWORK_ALIASES: dict[str, str] = {
     "gdpr": "gdpr",
@@ -1738,7 +1805,10 @@ def main() -> int:
         if os.path.exists(candidate):
             packs_dir = candidate
         else:
-            packs_dir = "/app/packs"
+            # Check Docker image location as last resort, otherwise use workspace
+            # so downstream gracefully-skips via load_pack returning None.
+            docker_path = "/app/packs"
+            packs_dir = docker_path if os.path.exists(docker_path) else args.workspace
 
     rules_path = args.rules_path
     if not rules_path or not os.path.exists(rules_path):
@@ -1746,7 +1816,16 @@ def main() -> int:
         if os.path.exists(candidate):
             rules_path = candidate
         else:
-            rules_path = "/app/rules"
+            # Check package-bundled rules
+            pkg_rules = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), "rules"
+            )
+            if os.path.exists(pkg_rules):
+                rules_path = pkg_rules
+            else:
+                # Only use /app/rules if it actually exists (i.e. inside Docker).
+                docker_rules = "/app/rules"
+                rules_path = docker_rules if os.path.exists(docker_rules) else ""
 
     scanners_dir = args.scanners_dir
     if not scanners_dir or not os.path.exists(scanners_dir):
@@ -1876,9 +1955,29 @@ def main() -> int:
     scored = []
     control_statuses = []
 
+    # ── Local-run header ──────────────────────────────────────────────────────
+    if not repo:
+        spinner = CliSpinner()
+        frameworks_display = ", ".join(f.upper() for f in frameworks)
+        sys.stderr.write(
+            f"\n"
+            f"  \033[1m\033[96maudit-packs\033[0m  compliance scanner\n"
+            f"  ─────────────────────────────────────────────────\n"
+            f"  \033[1mWorkspace :\033[0m  {workspace}\n"
+            f"  \033[1mFrameworks:\033[0m  {frameworks_display}\n"
+            f"  \033[1mScan mode :\033[0m  {scan_mode}\n"
+            f"  \033[1mThreshold :\033[0m  {round(threshold * 100)}%\n"
+            f"  ─────────────────────────────────────────────────\n\n"
+        )
+        sys.stderr.flush()
+    else:
+        spinner = CliSpinner()  # no-op in CI (not a tty)
+
     if scan_mode in ("diff", "both"):
+        spinner.start("Computing git diff …")
         diff_text = run_git_diff(workspace, args.base_ref)
         changed = parse_unified_diff(diff_text)
+        spinner.update(f"Running engines on {len(changed)} changed file(s) …")
         scored = analyze(
             workspace,
             changed,
@@ -1899,6 +1998,8 @@ def main() -> int:
             gitleaks_enabled=gitleaks_enabled,
             scanners_dir=scanners_dir,
         )
+        surfaced_count = sum(1 for sf in scored if sf.surfaced)
+        spinner.stop(f"Diff scan complete — {surfaced_count} finding(s) surfaced")
         from audit_packs_action.report import build_comments, build_summary_comment
 
         comments = build_comments(scored, commit_sha)
@@ -1928,6 +2029,7 @@ def main() -> int:
             gate_tripped = True
 
     if scan_mode in ("full", "both"):
+        spinner.start("Running full compliance assessment …")
         control_statuses = assess(
             workspace,
             packs_dir,
@@ -1946,6 +2048,9 @@ def main() -> int:
             gitleaks_enabled=gitleaks_enabled,
             scanners_dir=scanners_dir,
         )
+        n_pass = sum(1 for cs in control_statuses if cs.status.value == "pass")
+        n_total = len(control_statuses)
+        spinner.stop(f"Full assessment complete — {n_pass}/{n_total} controls passing")
 
         if not repo:
             print_local_coverage_matrix(control_statuses)

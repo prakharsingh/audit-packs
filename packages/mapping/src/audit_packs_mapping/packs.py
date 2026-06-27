@@ -3,7 +3,10 @@ import yaml
 from audit_packs_core.models import Finding, ControlFinding
 
 
-def load_pack(path: str) -> dict:
+def load_pack(path: str) -> dict | None:
+    """Load a pack YAML.  Returns None (instead of raising) when the file is missing."""
+    if not os.path.exists(path):
+        return None
     with open(path) as fh:
         data = yaml.safe_load(fh) or {}
     framework_key = data.get("framework") or data.get("id")
@@ -57,6 +60,8 @@ def _canonical_check_ids(pack: dict) -> dict[str, list[tuple[str, str]]]:
 def iter_controls(packs_dir: str, framework: str) -> list[dict]:
     """Return every control in *framework* with its resolved check_ids."""
     pack = load_pack(_pack_path(packs_dir, framework))
+    if pack is None:
+        return []
     crosswalk_id = pack.get("crosswalk")
 
     if crosswalk_id:
@@ -96,13 +101,29 @@ def iter_controls(packs_dir: str, framework: str) -> list[dict]:
 def map_findings(
     findings: list[Finding], packs_dir: str, frameworks: list[str]
 ) -> list[ControlFinding]:
+    import sys
+
     results: list[ControlFinding] = []
     for fw in frameworks:
         pack = load_pack(_pack_path(packs_dir, fw))
+        if pack is None:
+            print(
+                f"\n⚠️  pack not found for framework '{fw}' in {packs_dir!r} — skipping mapping.\n"
+                f"   Install with: audit-packs pack install <source>  "
+                f"or point --packs-dir at your packs directory.",
+                file=sys.stderr,
+            )
+            continue
         crosswalk_id = pack.get("crosswalk")
         canonical = (
             load_pack(_pack_path(packs_dir, crosswalk_id)) if crosswalk_id else pack
         )
+        if canonical is None:
+            print(
+                f"\n⚠️  crosswalk pack '{crosswalk_id}' not found for '{fw}' — skipping mapping.",
+                file=sys.stderr,
+            )
+            continue
         check_index = _canonical_index(canonical)
 
         if crosswalk_id:
