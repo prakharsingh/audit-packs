@@ -1,6 +1,110 @@
 # CHANGELOG
 
 
+## v0.3.1 (2026-06-26)
+
+### Bug Fixes
+
+- **action**: Shorten description for marketplace compliance
+  ([`92e3b79`](https://github.com/prakharsingh/audit-packs/commit/92e3b79e7d8f0ae2674f8cb56c1f5d4b7d494153))
+
+
+## v0.3.0 (2026-06-26)
+
+### Bug Fixes
+
+- Miscellaneous fixes -
+  ([`252ae8a`](https://github.com/prakharsingh/audit-packs/commit/252ae8aec26734eae4db19f97089035cfafd07d5))
+
+- Update run_e2e_manual.py imports for new package names
+  ([`95d1c71`](https://github.com/prakharsingh/audit-packs/commit/95d1c71b69b5ed03fd0d0d19e863a7325849bb37))
+
+### Chores
+
+- Add monorepo package scaffolding and workspace config
+  ([`bd373b6`](https://github.com/prakharsingh/audit-packs/commit/bd373b68e58465d325635aa2c05ee8c9e6f67ab0))
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+
+- Untrack local agent/IDE files and update gitignore for open sourcing
+  ([`a21df68`](https://github.com/prakharsingh/audit-packs/commit/a21df68ac7993568195dc36065e16c5ecbdd583d))
+
+To prepare the repository for open-sourcing, we keep it minimal by untracking local agent and
+  developer helper files (.agent, .agents, .claude, AGENTS.md, gemini.md, CLAUDE.md) that are
+  specific to the agentic workspace, while updating .gitignore to exclude them.
+
+### Continuous Integration
+
+- Use uv in test workflow for monorepo support
+  ([`206f29c`](https://github.com/prakharsingh/audit-packs/commit/206f29c4999a868e24ba10329f398cb6898e2dad))
+
+### Documentation
+
+- Add architectural alignment design spec
+  ([`f4e74f4`](https://github.com/prakharsingh/audit-packs/commit/f4e74f4a519f1e14874e73248da817a1654d0c30))
+
+Five-package monorepo split, pack schema v2, terminology rename, README repositioning.
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+
+- Add architectural alignment implementation plan
+  ([`4b0cd3e`](https://github.com/prakharsingh/audit-packs/commit/4b0cd3ef73bee05cb38acdeee1f936c7d30cd872))
+
+5-task plan: pack schema v2, terminology rename, monorepo scaffolding, module move, README update.
+  Full code for every step.
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+
+- Fix three spec errors — dep graph, roles wrapper, gap count
+  ([`f17e073`](https://github.com/prakharsingh/audit-packs/commit/f17e073c633da6b7e4f9ae64b042a3bcfc4dd35e))
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+
+- Reposition as Evidence-first Compliance Intelligence Engine
+  ([`d4b40d0`](https://github.com/prakharsingh/audit-packs/commit/d4b40d043e3436f70b8d25a5350f2f02db601a2d))
+
+- Update ONBOARDING.md for monorepo package layout and schema v2
+  ([`5886a5a`](https://github.com/prakharsingh/audit-packs/commit/5886a5a47f72e6ce2a943a37ff55e7d401c3f1ed))
+
+### Features
+
+- Big-bang module move — src/audit_packs/ → packages/*/src/
+  ([`6bf70a6`](https://github.com/prakharsingh/audit-packs/commit/6bf70a690bbbfae6cc00d3dca6ad81b64b5090df))
+
+Move all 14 source modules to their respective package homes: - models, diff, normalize, dataflow →
+  packages/core/src/audit_packs_core/ - packs, coverage, oscal →
+  packages/mapping/src/audit_packs_mapping/ - evidence, agents →
+  packages/evidence/src/audit_packs_evidence/ - adjudicate, confidence →
+  packages/ai/src/audit_packs_ai/ - engines, report, cli → packages/action/src/audit_packs_action/
+
+Update all imports in moved files and 25 test files to use new package names. Remove "src" from
+  pytest pythonpath. Fix packages/action/pyproject.toml (dependencies was nested under
+  [project.urls]). Fix Dockerfile install order (packages/ai must precede packages/action to satisfy
+  audit-packs-ai dep).
+
+Tests: 186 passed, 9 skipped (env-based), 0 failed.
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+
+- Pack schema v2 — per-framework dirs, evidence_requirements, mappings
+  ([`ad7a24f`](https://github.com/prakharsingh/audit-packs/commit/ad7a24fe0c89a3659bd7280255381abbcb3f1e14))
+
+- Migrate 8 pack files from flat packs/<fw>.yaml (v1, checks/ids) to packs/<fw>/controls.yaml (v2,
+  mappings/check_id) - Add scripts/migrate_packs_v2.py for the one-time migration - Add
+  ControlFinding.evidence_requirements: tuple = () to models.py - Rewrite packs.py: _pack_path() ->
+  <fw>/controls.yaml, _canonical_index and map_findings carry evidence_requirements through,
+  load_pack reads org-policy from new subdir path - Update tests/test_packs.py: 4 inline-pack tests
+  use v2 format + new test_map_findings_populates_evidence_requirements - Update
+  tests/test_rules.py: _nist_semgrep_ids() reads v2 mappings
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+
+### Refactoring
+
+- Rename adversarial→challenger, judge→consensus in AI ensemble
+  ([`5afd754`](https://github.com/prakharsingh/audit-packs/commit/5afd7545dcb619b7c9673769352eec964abc4830))
+
+
 ## v0.2.0 (2026-06-25)
 
 ### Bug Fixes
