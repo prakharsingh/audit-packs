@@ -46,7 +46,7 @@ jobs:
         id: semantic
         uses: python-semantic-release/python-semantic-release@v9
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
 
       - name: Set up uv
         if: steps.semantic.outputs.released == 'true'
