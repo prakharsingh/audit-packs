@@ -35,7 +35,7 @@ version_variables = ["packages/action/src/audit_packs_action/__init__.py:__versi
 version_toml = ["packages/action/pyproject.toml:project.version"]
 commit_parser = "conventional"
 allow_zero_version = true
-build_command = "pip install build && python -m build packages/action"
+build_command = "pip install build && cd packages/action && python -m build . --outdir ../../dist"
 upload_to_pypi = false
 
 [tool.semantic_release.changelog]
