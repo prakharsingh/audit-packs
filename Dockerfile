@@ -13,9 +13,9 @@ RUN pip install --no-cache-dir \
     -e packages/action \
     checkov semgrep \
     && if [ "$INSTALL_AI" = "true" ]; then pip install --no-cache-dir -e "packages/ai[ai]"; fi
-# trivy v0.51.1 — bump version here to upgrade
+# trivy v0.69.2 — bump version here to upgrade
 RUN curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
-    | sh -s -- -b /usr/local/bin v0.51.1
+    | sh -s -- -b /usr/local/bin v0.69.2
 # tfsec v1.28.6 — bump version here to upgrade
 RUN curl -sfL "https://github.com/aquasecurity/tfsec/releases/download/v1.28.6/tfsec-linux-amd64" \
     -o /usr/local/bin/tfsec && chmod +x /usr/local/bin/tfsec

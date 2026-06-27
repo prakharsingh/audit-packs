@@ -90,7 +90,7 @@ The action posts inline review comments on changed lines only, writes an OSCAL a
 | `judge-model` | `""` | Override the `judge` role's model (sets `JUDGE_MODEL` env). |
 | `codeql-sarif` | `""` | Repo-relative path to directory of CodeQL SARIF files. Gracefully skipped if absent. |
 | `ast-rules` | `ast-rules` | Path to Tree-sitter AST rule scripts directory (reserved for Phase 2; ignored in Phase 1). |
-| `trivy-enabled` | `true` | Enable Trivy filesystem + image scanning. Requires trivy binary ≥ v0.51.1 on the runner. |
+| `trivy-enabled` | `true` | Enable Trivy filesystem + image scanning. Requires trivy binary ≥ v0.69.2 on the runner. |
 | `trivy-image` | `""` | Docker image reference for `trivy image` scan. Skipped when empty. Only used when `trivy-enabled` is `true`. |
 | `tfsec-enabled` | `true` | Enable tfsec Terraform security checks. |
 | `gitleaks-enabled` | `true` | Enable gitleaks secret detection. |
