@@ -1,0 +1,22 @@
+rules:
+  - id: pii-variable-name
+    patterns:
+      - pattern-either:
+          - pattern: $X = ...
+          - pattern: $X = $FUNC(...)
+      - metavariable-regex:
+          metavariable: $X
+          regex: '(?i)(ssn|dob|card_number|passport_no|social_security|date_of_birth|credit_card|cvv|tax_id)'
+    message: >
+      Variable '$X' matches a PII field name pattern. Ensure this data is
+      encrypted at rest (GDPR Art. 32-a, HIPAA §164.312(a)(2)(iv), NIST SC-28).
+    languages: [python]
+    severity: WARNING
+    metadata:
+      confidence: MEDIUM
+      category: security
+      cwe: CWE-312
+      compliance:
+        - GDPR Art-32-a
+        - HIPAA §164.312
+        - NIST SC-28

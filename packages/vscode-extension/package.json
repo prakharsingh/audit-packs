@@ -1,0 +1,72 @@
+{
+  "name": "audit-packs-vscode",
+  "displayName": "Audit Packs Compliance Scanner",
+  "description": "Scan IaC and custom rules directly in VS Code and map them to compliance frameworks (NIST, SOC2, GDPR, HIPAA)",
+  "version": "0.1.0",
+  "publisher": "prakharsingh",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/prakharsingh/audit-packs.git"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Linters",
+    "Security"
+  ],
+  "activationEvents": [
+    "onLanguage:python",
+    "onLanguage:terraform",
+    "onLanguage:yaml"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "auditPacks.runScan",
+        "title": "Audit Packs: Run Compliance Scan on Workspace"
+      },
+      {
+        "command": "auditPacks.init",
+        "title": "Audit Packs: Initialize Configuration"
+      }
+    ],
+    "configuration": {
+      "title": "Audit Packs",
+      "properties": {
+        "auditPacks.frameworks": {
+          "type": "string",
+          "default": "nist-800-53,soc2",
+          "description": "Compliance frameworks to evaluate (comma-separated)."
+        },
+        "auditPacks.scanOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically run compliance check when saving a file."
+        },
+        "auditPacks.failOn": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "critical"],
+          "default": "high",
+          "description": "Minimum severity to trigger fail status."
+        },
+        "auditPacks.adjudicationMode": {
+          "type": "string",
+          "enum": ["off", "advisory", "enforce"],
+          "default": "off",
+          "description": "Consensus AI adjudication mode."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^18.11.18",
+    "@types/vscode": "^1.80.0",
+    "typescript": "^5.1.3"
+  }
+}

@@ -86,6 +86,15 @@ class CheckovEngine(BaseEngine):
                     ) from exc
 
                 returncode = proc.returncode
+            except FileNotFoundError:
+                import sys
+
+                print(
+                    "⚠️  checkov not found on PATH — skipping Checkov engine.\n"
+                    "   Install it with: pipx inject audit-packs checkov",
+                    file=sys.stderr,
+                )
+                return {"runs": []}
             except Exception as exc:
                 if not isinstance(exc, RuntimeError):
                     raise RuntimeError(
@@ -115,8 +124,20 @@ class SemgrepEngine(BaseEngine):
 
     async def run_scan_async(self, target: str, options: dict) -> dict:
         rules_path = options.get("rules_path")
-        if not rules_path:
+        if rules_path is None:
             raise ValueError("semgrep requires 'rules_path' in options")
+
+        # Validate rules path before invoking semgrep to give a clear message.
+        if not rules_path or not os.path.exists(rules_path):
+            import sys
+
+            print(
+                f"\n⚠️  semgrep rules path not found: {rules_path!r} — skipping Semgrep engine.\n"
+                "   Pass --rules-path <dir> or set RULES_PATH to a directory of .yaml rules.",
+                file=sys.stderr,
+            )
+            return {"runs": []}
+
         try:
             cmd = [
                 _resolve_executable("semgrep"),
@@ -149,12 +170,33 @@ class SemgrepEngine(BaseEngine):
                 ) from exc
 
             returncode = proc.returncode
+        except FileNotFoundError:
+            import sys
+
+            print(
+                "⚠️  semgrep not found on PATH — skipping Semgrep engine.\n"
+                "   Install it with: pipx inject audit-packs semgrep",
+                file=sys.stderr,
+            )
+            return {"runs": []}
         except Exception as exc:
             if not isinstance(exc, RuntimeError):
                 raise RuntimeError(
                     f"Failed to spawn semgrep subprocess: {exc}"
                 ) from exc
             raise
+
+        # Exit code 7 means semgrep found no rules to run (e.g. empty dir,
+        # no .yaml files matching the config pattern).  Treat as a non-fatal
+        # skip rather than a hard error.
+        if returncode == 7:
+            import sys
+
+            print(
+                f"\n⚠️  semgrep found no rules in {rules_path!r} (exit 7) — skipping Semgrep engine.",
+                file=sys.stderr,
+            )
+            return {"runs": []}
 
         if returncode is not None and returncode >= 2:
             raise RuntimeError(
@@ -542,3 +584,102 @@ class GitleaksEngine(BaseEngine):
 
 def run_gitleaks(target_dir: str) -> dict:
     return GitleaksEngine().run_scan(target_dir, {})
+
+
+class DeclarativeEngine(BaseEngine):
+    def __init__(self, config_path: str):
+        import yaml
+
+        with open(config_path, "r") as fh:
+            self.cfg = yaml.safe_load(fh)
+        self._name = self.cfg.get("id")
+        self.executable = self.cfg.get("executable")
+        self.args_template = self.cfg.get("args", [])
+        self.output_format = self.cfg.get("output_format", "sarif")
+        self.timeout = int(self.cfg.get("timeout", _DEFAULT_TIMEOUT))
+        self.env_override = self.cfg.get("env", {})
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    async def run_scan_async(self, target: str, options: dict) -> dict:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_file = os.path.join(
+                tmpdir,
+                "output.sarif" if self.output_format == "sarif" else "output.json",
+            )
+            cmd_args = []
+            for arg in self.args_template:
+                arg_fmt = arg.replace("{target_dir}", target).replace(
+                    "{output_file}", out_file
+                )
+                cmd_args.append(arg_fmt)
+
+            cmd = [_resolve_executable(self.executable)] + cmd_args
+            env = os.environ.copy()
+            for k, v in self.env_override.items():
+                env[k] = str(v)
+
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    env=env,
+                )
+            except FileNotFoundError:
+                log.warning(
+                    f"Declarative scanner executable not found: {cmd[0]}. Skipping scan."
+                )
+                return {"runs": []}
+
+            try:
+                stdout, stderr = await asyncio.wait_for(
+                    proc.communicate(), timeout=self.timeout
+                )
+            except asyncio.TimeoutError as exc:
+                try:
+                    proc.kill()
+                except ProcessLookupError:
+                    pass
+                raise RuntimeError(
+                    f"Declarative engine {self.name} execution timed out after {self.timeout} seconds"
+                ) from exc
+
+            if os.path.exists(out_file):
+                try:
+                    with open(out_file) as fh:
+                        return json.load(fh)
+                except json.JSONDecodeError:
+                    pass
+            return {"runs": []}
+
+
+def load_plugins(scanners_dir: str = None) -> list[BaseEngine]:
+    engines = []
+    if scanners_dir and os.path.isdir(scanners_dir):
+        for ext in ("*.yaml", "*.yml", "*.json"):
+            for config_path in glob.glob(os.path.join(scanners_dir, ext)):
+                try:
+                    engines.append(DeclarativeEngine(config_path))
+                except Exception as exc:
+                    log.warning(
+                        f"Failed to load declarative scanner plugin from {config_path}: {exc}"
+                    )
+
+    try:
+        import importlib.metadata
+
+        entry_points = importlib.metadata.entry_points(group="audit_packs.scanners")
+        for ep in entry_points:
+            try:
+                engine_cls = ep.load()
+                engine_inst = engine_cls()
+                engines.append(engine_inst)
+            except Exception as exc:
+                log.error(f"Failed to load external scanner plugin {ep.name}: {exc}")
+    except Exception:
+        pass
+
+    return engines

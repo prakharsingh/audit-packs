@@ -38,6 +38,8 @@ Checkov and Semgrep are excellent at finding IaC misconfigurations. They are not
 
 ## Quick start
 
+Refer to the complete [Setup & Integration Guide](docs/SETUP.md) for detailed CLI, VS Code extension, and notification configuration.
+
 ```yaml
 # .github/workflows/audit.yml
 name: Audit Packs
@@ -528,26 +530,36 @@ If `codeql-sarif` is absent or the directory is empty, CodeQL findings are silen
 
 ## Local development
 
+For complete setup and configuration details, see the [Setup & Integration Guide](docs/SETUP.md).
+
 **Prerequisites:** Python 3.11+, `git`, [`uv`](https://docs.astral.sh/uv/) (recommended for the workspace install)
 
+### Install (choose one)
+
+**For running the CLI against your own repos:**
+```bash
+pipx install audit-packs
+pipx inject audit-packs checkov semgrep   # optional scanners
+```
+
+**For contributing / running tests:**
 ```bash
 # Clone the repo
 git clone https://github.com/prakharsingh/audit-packs.git
 cd audit-packs
 
-# Install all workspace packages (core, mapping, evidence, ai, action) + dev deps
+# Install all workspace packages editably + dev deps via uv
 uv sync
 
-# Or, without uv: install each workspace package editable
-python -m venv .venv && source .venv/bin/activate
-pip install -e packages/core -e packages/mapping -e packages/evidence \
-            -e packages/ai -e packages/action[ai]
-pip install pytest checkov semgrep
+# Or install editably via pipx from source
+pipx install ./packages/action --force
+pipx inject audit-packs \
+  ./packages/core ./packages/mapping ./packages/evidence ./packages/ai --force
+```
 
-# Verify engines are on PATH
-checkov --version
-semgrep --version
+### Running tests
 
+```bash
 # Run all tests
 pytest -v
 
@@ -556,6 +568,17 @@ pytest tests/test_packs.py -v
 
 # Run a single test
 pytest tests/test_packs.py::test_map_findings_crosswalk_soc2 -v
+```
+
+### After editing a package (pipx installs)
+
+```bash
+# Reinstall only changed packages
+pipx inject audit-packs ./packages/action ./packages/mapping --force
+
+# Test from any git repo — uses bundled default rules for Semgrep if rules-path is omitted
+audit-packs --frameworks nist-800-53,soc2 \
+            --packs-dir ~/projects/audit-packs/packs
 ```
 
 **Build the Docker action image:**

@@ -52,28 +52,45 @@ You do not need Checkov or Semgrep installed globally. The dev install (step 3) 
 
 ## 3. Local setup
 
+### Option A — `uv sync` (recommended for contributors)
+
 ```bash
 # Clone and enter the repo
 git clone https://github.com/prakharsingh/audit-packs.git
 cd audit-packs
 
-# Create a virtual environment (Python 3.11+)
-python3 -m venv .venv
-source .venv/bin/activate
-
-# Install the package and all dev dependencies
-# This also installs checkov and semgrep into .venv/bin
-pip install -e ".[dev]"
-
-# Verify the engines are on PATH
-checkov --version
-semgrep --version
+# Install all workspace packages editably + dev deps in one step
+uv sync
 
 # Verify the CLI entry point works
 audit-packs --help
+
+# Run a local scan from within the repo (packs + rules are present)
+audit-packs --frameworks nist-800-53,soc2 \
+            --packs-dir ./packs \
+            --rules-path ./rules
 ```
 
-After this, `.venv/bin/audit-packs` is the CLI entry point (mapped from `audit_packs_action.cli:main` in `packages/action/pyproject.toml`).
+`uv sync` installs all five workspace packages (`core`, `mapping`, `evidence`, `ai`, `action`) as editable, so changes to source take effect immediately without reinstalling.
+
+> **Scanners are optional.** `checkov` and `semgrep` are skipped with a warning if they are not on PATH. For Semgrep, default rules are bundled within the package and used as a fallback if no rules path is specified.
+
+### Option B — `pipx` (recommended for users / quick local testing)
+
+```bash
+pipx install audit-packs
+pipx inject audit-packs checkov semgrep   # optional scanners
+
+# Run from any git repo — uses bundled default rules for Semgrep if rules-path is omitted
+audit-packs --frameworks nist-800-53,soc2,gdpr
+
+# Full run with custom local paths:
+audit-packs --frameworks nist-800-53,soc2 \
+            --packs-dir ~/projects/audit-packs/packs \
+            --rules-path /path/to/my/custom/rules
+```
+
+After install, `audit-packs` is available globally. The CLI entry point is defined in `packages/action/pyproject.toml` → `audit_packs_action.cli:main`.
 
 ---
 
@@ -314,36 +331,31 @@ controls:
 
 ### Step-by-step: add a crosswalk pack
 
-1. Create `packs/my-framework/controls.yaml` following the crosswalk schema above. Use an existing pack like `packs/soc2/controls.yaml` as a reference.
-
-2. Verify the pack loads without error:
+1. Bootstrap the pack folder structure and metadata templates using the `pack init` command:
 
    ```bash
-   python3 -c "
-   from audit_packs_mapping.packs import load_pack
-   pack = load_pack('packs/my-framework')
-   print(f'Loaded {len(pack[\"controls\"])} controls')
-   "
+   audit-packs pack init my-framework --output-dir packs
    ```
 
-3. Verify control mapping resolves correctly:
+2. Edit the generated `packs/my-framework/controls.yaml` to specify your framework controls and maps_to NIST-800-53 links.
+
+3. Verify the pack metadata and mappings syntax are valid:
 
    ```bash
-   python3 -c "
-   from audit_packs_core.models import Finding
-   from audit_packs_mapping.packs import map_findings
-   f = Finding('CKV_AWS_19', 'checkov', 'main.tf', 1, 'high', 'msg', 'ev')
-   cfs = map_findings([f], 'packs', ['my-framework'])
-   for cf in cfs:
-       print(cf.framework, cf.control_id, cf.control_title)
-   "
+   audit-packs pack validate packs/my-framework
    ```
 
-4. Add tests to `tests/test_packs.py`. At a minimum: one test that verifies a known check ID resolves to the expected control, and one that verifies `assessment: manual` controls are present in `iter_controls()` output.
+4. Dry-run and test your control mappings against a local target fixture repository:
 
-5. Register the framework ID in `agents.py` `build_agents()` if you need custom detection logic beyond what Checkov/Semgrep provide. Framework agents follow the `DetectionAgent.detect() → SARIF dict` contract — they do not call `map_findings`, they only emit raw findings.
+   ```bash
+   audit-packs pack test packs/my-framework --fixture ./tests/fixtures/terraform/
+   ```
 
-6. If you are adding a new Semgrep rule to support the pack, add the `.yaml` rule file to `rules/` and reference it in the canonical NIST pack under the appropriate control.
+5. Add tests to `tests/test_packs.py`. At a minimum: one test that verifies a known check ID resolves to the expected control, and one that verifies `assessment: manual` controls are present in `iter_controls()` output.
+
+6. Register the framework ID in `agents.py` `build_agents()` if you need custom detection logic beyond what Checkov/Semgrep provide. Framework agents follow the `DetectionAgent.detect() → SARIF dict` contract — they do not call `map_findings`, they only emit raw findings.
+
+7. If you are adding a new Semgrep rule to support the pack, add the `.yaml` rule file to `rules/` and reference it in the canonical NIST pack under the appropriate control.
 
 ### Pack validation rules
 
@@ -395,6 +407,34 @@ export PR_NUMBER=<pr-number>
 export BASE_REF=origin/main
 
 python -m audit_packs_action.cli
+```
+
+### Option C — pipx (fastest for quick iteration)
+
+```bash
+# Run directly from any git repo — no Docker, no venv activation
+audit-packs --frameworks nist-800-53,soc2 \
+            --packs-dir ~/projects/audit-packs/packs \
+            --rules-path ~/projects/audit-packs/rules
+
+# Missing packs-dir or rules-path warn and skip gracefully, so this also works:
+audit-packs --frameworks nist-800-53,soc2,gdpr
+```
+
+### After editing source (pipx installs)
+
+```bash
+# Reinstall only the packages you changed
+pipx inject audit-packs ./packages/action ./packages/mapping --force
+
+# Full reset
+pipx uninstall audit-packs
+pipx install ./packages/action --force
+pipx inject audit-packs \
+  ./packages/core ./packages/mapping ./packages/evidence ./packages/ai --force
+
+# Verify
+audit-packs --help
 ```
 
 ### Minimal GitHub Actions workflow

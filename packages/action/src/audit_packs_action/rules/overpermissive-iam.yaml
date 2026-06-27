@@ -1,0 +1,31 @@
+rules:
+  - id: overpermissive-iam
+    languages: [python]
+    severity: ERROR
+    message: >
+      Overly permissive IAM policy detected ("*" actions or resources). This
+      violates least-privilege access controls (NIST AC-6 / SOC 2 CC6.7).
+    patterns:
+      - pattern-either:
+          # Python boto3 / SDK policy documents with wildcard action
+          - pattern: |
+              {
+                  "Effect": "Allow",
+                  "Action": "*",
+                  ...
+              }
+          - pattern: |
+              {
+                  "Effect": "Allow",
+                  "Action": ["*"],
+                  ...
+              }
+          # Wildcard resource with Allow
+          - pattern: |
+              {
+                  "Effect": "Allow",
+                  ...,
+                  "Resource": "*"
+              }
+          # Python string containing the pattern (policy embedded as string)
+          - pattern-regex: '"Effect"\s*:\s*"Allow"[^}]*"Action"\s*:\s*"\*"'

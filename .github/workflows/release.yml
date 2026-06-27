@@ -35,6 +35,7 @@ jobs:
       contents: write
       issues: write
       pull-requests: write
+      id-token: write  # Required for OIDC trusted publishing to PyPI
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -42,6 +43,24 @@ jobs:
           fetch-depth: 0
 
       - name: Python Semantic Release
+        id: semantic
         uses: python-semantic-release/python-semantic-release@v9
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Set up uv
+        if: steps.semantic.outputs.released == 'true'
+        uses: astral-sh/setup-uv@v5
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          python-version: '3.11'
+          enable-cache: true
+
+      - name: Build all packages
+        if: steps.semantic.outputs.released == 'true'
+        run: uv build --all-packages
+
+      - name: Publish package distributions to PyPI
+        if: steps.semantic.outputs.released == 'true'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true

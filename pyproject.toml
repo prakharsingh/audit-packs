@@ -12,7 +12,10 @@ audit-packs-core = { workspace = true }
 audit-packs-mapping = { workspace = true }
 audit-packs-evidence = { workspace = true }
 audit-packs-ai = { workspace = true }
-audit-packs-action = { workspace = true }
+audit-packs = { workspace = true }
+
+[tool.uv]
+link-mode = "copy"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -45,3 +48,8 @@ changelog_file = "CHANGELOG.md"
 match = "(main|master)"
 prerelease_token = "rc"
 prerelease = false
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.6.0",
+]

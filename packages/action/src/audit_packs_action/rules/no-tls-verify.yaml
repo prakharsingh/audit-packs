@@ -1,0 +1,23 @@
+rules:
+  - id: no-tls-verify
+    languages: [python]
+    severity: ERROR
+    message: >
+      TLS certificate verification is disabled (verify=False). This allows
+      man-in-the-middle attacks and violates transmission confidentiality controls
+      (NIST SC-8 / SOC 2 CC6.6).
+    patterns:
+      - pattern-either:
+          # requests library with verify=False
+          - pattern: requests.get(..., verify=False, ...)
+          - pattern: requests.post(..., verify=False, ...)
+          - pattern: requests.put(..., verify=False, ...)
+          - pattern: requests.delete(..., verify=False, ...)
+          - pattern: requests.patch(..., verify=False, ...)
+          - pattern: requests.request(..., verify=False, ...)
+          - pattern: requests.Session().get(..., verify=False, ...)
+          # urllib3 disable warnings + no verify
+          - pattern: urllib3.disable_warnings(...)
+          # ssl context: unverified
+          - pattern: ssl._create_unverified_context(...)
+          - pattern: ssl.create_default_context(cafile=None, ...)

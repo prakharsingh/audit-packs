@@ -64,4 +64,4 @@ Release notes are generated from Conventional Commit messages with `python-seman
 - `fix:` corrects user-visible behavior and appears under fixes.
 - `docs:`, `test:`, `refactor:`, and `chore:` are useful for history but usually do not trigger a release by themselves.
 
-The release workflow runs on pushes to `main`, updates `CHANGELOG.md`, bumps `pyproject.toml` and `src/audit_packs/__init__.py`, and creates the GitHub release. Before merging, verify PR titles and commit messages describe the change clearly enough to become release notes.
+The release workflow runs on pushes to `main`, updates `CHANGELOG.md`, bumps `packages/action/pyproject.toml` / `packages/action/src/audit_packs_action/__init__.py`, creates a GitHub release, and automatically builds and publishes all 5 packages to PyPI. Before merging, verify PR titles and commit messages describe the change clearly enough to become release notes.
