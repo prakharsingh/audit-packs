@@ -14,7 +14,7 @@
 - New function params `trivy_enabled`, `tfsec_enabled`, `gitleaks_enabled` default to `False` in Python — existing tests call `analyze()`/`assess()` without these kwargs and must keep passing.
 - Engine name tags in Python (`"trivy"`, `"tfsec"`, `"gitleaks"`) must match `engine:` keys in pack YAML exactly — the `_canonical_index` lookup is case-sensitive.
 - `asyncio.create_subprocess_exec` is the subprocess mechanism — same as existing engines.
-- Exit code conventions: Trivy (0 = clean, 1 = findings, ≥2 = error); tfsec (0 = clean, 1 = findings, ≥2 = error); gitleaks (0 = clean, 1 = leaks found, anything not in {0,1} = error).
+- Exit code conventions: Trivy (0 = clean or findings since `--exit-code 1` is not used in this plan; the engine guard treats exit codes 0 and 1 identically and only raises on ≥2); tfsec (0 = clean, 1 = findings, ≥2 = error); gitleaks (0 = clean, 1 = leaks found, anything not in {0,1} = error).
 - Only `engines.py` may make subprocess calls — no new IO boundary exceptions.
 - Apache-2.0 license; all new binaries (trivy, tfsec, gitleaks) are open-source.
 - Dockerfile scanner versions are pinned and marked for manual update (no Renovate config yet).
@@ -34,6 +34,8 @@
 | Create | `tests/test_tfsec_engine.py` | TfsecEngine unit tests |
 | Create | `tests/test_gitleaks_engine.py` | GitleaksEngine unit tests |
 | Modify | `tests/test_packs.py` | Three new pack-mapping integration tests |
+| Modify | `README.md` | Flip Trivy/tfsec/gitleaks "Planned" → "Supported" in scanner table; add new input rows |
+| Modify | `packages/action/pyproject.toml` | Add trivy/tfsec/gitleaks to `keywords`; update `description` |
 
 ---
 
@@ -703,9 +705,13 @@ Replace with:
 
 - [ ] **Step 5: Add Trivy findings to analyze() pipeline**
 
-Find the findings assembly block in `analyze()`:
+**⚠️ Disambiguation:** This exact 4-line `findings` block appears identically in both `analyze()` and `assess()`. In `analyze()`, the preceding `rule_confidences.update(extract_rule_confidences(ast_sarif, "ast"))` flows directly into `findings = []` with no intervening code. In `assess()`, the same line is followed by a comment block and `all_file_texts = _read_all_files(repo_dir)` before `findings = []`. The find-string below includes the unique anchor line so it matches only the `analyze()` copy.
+
+Find the findings assembly block in `analyze()` (includes unique preceding anchor):
 
 ```python
+    rule_confidences.update(extract_rule_confidences(ast_sarif, "ast"))
+
     findings = []
     findings += sarif_to_findings(checkov_sarif, "checkov")
     findings += sarif_to_findings(semgrep_sarif, "semgrep")
@@ -716,6 +722,8 @@ Find the findings assembly block in `analyze()`:
 Replace with:
 
 ```python
+    rule_confidences.update(extract_rule_confidences(ast_sarif, "ast"))
+
     findings = []
     findings += sarif_to_findings(checkov_sarif, "checkov")
     findings += sarif_to_findings(semgrep_sarif, "semgrep")
@@ -728,16 +736,7 @@ Replace with:
         findings += sarif_to_findings(merged_trivy, "trivy")
 ```
 
-Also add `rule_confidences` update for trivy near the other `extract_rule_confidences` calls. Find the block:
-
-```python
-    rule_confidences: dict[str, float] = {}
-    rule_confidences.update(extract_rule_confidences(semgrep_sarif, "semgrep"))
-    rule_confidences.update(extract_rule_confidences(codeql_sarif, "codeql"))
-    rule_confidences.update(extract_rule_confidences(ast_sarif, "ast"))
-```
-
-The `rule_confidences.update` for trivy is already handled in the findings block above (only if `trivy_runs` is non-empty), so no change needed here.
+The `rule_confidences.update` for trivy is handled inline in the findings block above (only if `trivy_runs` is non-empty); no change to the preceding `rule_confidences` block is needed.
 
 - [ ] **Step 6: Add trivy_enabled and trivy_image params to assess()**
 
@@ -874,9 +873,11 @@ Replace with:
 
 - [ ] **Step 9: Add Trivy findings to assess() pipeline**
 
-Find the findings assembly block in `assess()`:
+Find the findings assembly block in `assess()` (includes `all_file_texts` anchor unique to `assess()`):
 
 ```python
+    all_file_texts = _read_all_files(repo_dir)
+
     findings = []
     findings += sarif_to_findings(checkov_sarif, "checkov")
     findings += sarif_to_findings(semgrep_sarif, "semgrep")
@@ -887,6 +888,8 @@ Find the findings assembly block in `assess()`:
 Replace with:
 
 ```python
+    all_file_texts = _read_all_files(repo_dir)
+
     findings = []
     findings += sarif_to_findings(checkov_sarif, "checkov")
     findings += sarif_to_findings(semgrep_sarif, "semgrep")
@@ -1002,20 +1005,171 @@ RUN curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/
     | sh -s -- -b /usr/local/bin v0.51.1
 ```
 
-- [ ] **Step 13: Run full suite**
+- [ ] **Step 13: Add CLI wiring integration tests**
+
+Create `tests/test_cli_trivy_wiring.py`:
+
+```python
+"""Integration tests: verify trivy_enabled=True actually routes TrivyEngine into the pipeline."""
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+_EMPTY_SARIF = {"runs": []}
+
+
+def test_analyze_signature_accepts_trivy_params():
+    import inspect
+    from audit_packs_action.cli import analyze
+    sig = inspect.signature(analyze)
+    assert "trivy_enabled" in sig.parameters
+    assert "trivy_image" in sig.parameters
+    assert sig.parameters["trivy_enabled"].default is False
+    assert sig.parameters["trivy_image"].default == ""
+
+
+def test_assess_signature_accepts_trivy_params():
+    import inspect
+    from audit_packs_action.cli import assess
+    sig = inspect.signature(assess)
+    assert "trivy_enabled" in sig.parameters
+    assert "trivy_image" in sig.parameters
+    assert sig.parameters["trivy_enabled"].default is False
+    assert sig.parameters["trivy_image"].default == ""
+
+
+def test_analyze_sync_path_calls_run_trivy_fs_when_enabled(tmp_path):
+    """When asyncio.run raises RuntimeError (nested event loop), sync fallback calls run_trivy_fs."""
+    from audit_packs_action.cli import analyze
+
+    trivy_fs_called = []
+
+    def _mock_run_trivy_fs(target):
+        trivy_fs_called.append(target)
+        return _EMPTY_SARIF
+
+    with (
+        patch("asyncio.run", side_effect=RuntimeError("nested asyncio.run")),
+        patch("audit_packs_action.cli.run_checkov", return_value=_EMPTY_SARIF),
+        patch("audit_packs_action.cli.run_semgrep", return_value=_EMPTY_SARIF),
+        patch("audit_packs_action.cli.run_ast_rules", return_value=_EMPTY_SARIF),
+        patch("audit_packs_action.cli.run_trivy_fs", side_effect=_mock_run_trivy_fs),
+        patch("audit_packs_action.cli.run_trivy_image", return_value=_EMPTY_SARIF),
+    ):
+        try:
+            analyze(str(tmp_path), {}, str(tmp_path), "", ["nist-800-53"], trivy_enabled=True)
+        except RuntimeError:
+            pass
+
+    assert trivy_fs_called, "run_trivy_fs was not called despite trivy_enabled=True"
+
+
+def test_analyze_sync_path_skips_run_trivy_fs_when_disabled(tmp_path):
+    """run_trivy_fs must NOT be called when trivy_enabled=False (the default)."""
+    from audit_packs_action.cli import analyze
+
+    trivy_fs_called = []
+
+    def _mock_run_trivy_fs(target):
+        trivy_fs_called.append(target)
+        return _EMPTY_SARIF
+
+    with (
+        patch("asyncio.run", side_effect=RuntimeError("nested asyncio.run")),
+        patch("audit_packs_action.cli.run_checkov", return_value=_EMPTY_SARIF),
+        patch("audit_packs_action.cli.run_semgrep", return_value=_EMPTY_SARIF),
+        patch("audit_packs_action.cli.run_ast_rules", return_value=_EMPTY_SARIF),
+        patch("audit_packs_action.cli.run_trivy_fs", side_effect=_mock_run_trivy_fs),
+        patch("audit_packs_action.cli.run_trivy_image", return_value=_EMPTY_SARIF),
+    ):
+        try:
+            analyze(str(tmp_path), {}, str(tmp_path), "", ["nist-800-53"], trivy_enabled=False)
+        except RuntimeError:
+            pass
+
+    assert not trivy_fs_called, "run_trivy_fs was called despite trivy_enabled=False"
+
+
+def test_assess_sync_path_calls_run_trivy_fs_when_enabled(tmp_path):
+    """When asyncio.run raises RuntimeError, assess() sync fallback calls run_trivy_fs."""
+    from audit_packs_action.cli import assess
+
+    trivy_fs_called = []
+
+    def _mock_run_trivy_fs(target):
+        trivy_fs_called.append(target)
+        return _EMPTY_SARIF
+
+    with (
+        patch("asyncio.run", side_effect=RuntimeError("nested asyncio.run")),
+        patch("audit_packs_action.cli.run_checkov", return_value=_EMPTY_SARIF),
+        patch("audit_packs_action.cli.run_semgrep", return_value=_EMPTY_SARIF),
+        patch("audit_packs_action.cli.run_ast_rules", return_value=_EMPTY_SARIF),
+        patch("audit_packs_action.cli.run_trivy_fs", side_effect=_mock_run_trivy_fs),
+        patch("audit_packs_action.cli.run_trivy_image", return_value=_EMPTY_SARIF),
+    ):
+        try:
+            assess(str(tmp_path), str(tmp_path), "", ["nist-800-53"], trivy_enabled=True)
+        except RuntimeError:
+            pass
+
+    assert trivy_fs_called, "run_trivy_fs was not called in assess() despite trivy_enabled=True"
+```
+
+- [ ] **Step 14: Run full suite**
 
 ```bash
 uv run pytest tests/ -v --ignore=tests/test_live_llm.py --ignore=tests/test_real_world_repos.py -q 2>&1 | tail -10
 ```
 
-Expected: 0 failures.
+Expected: 0 failures (includes the 5 new wiring tests).
 
-- [ ] **Step 14: Commit (PR 1 ready)**
+- [ ] **Step 15: Update README.md (Trivy — PR 1)**
+
+Make three targeted edits to `README.md`:
+
+**Change 1 — Supported Scanners table:** flip Trivy status.
+
+```
+Find:
+| Trivy   | Planned |
+
+Replace with:
+| Trivy   | Supported |
+```
+
+**Change 2 — description paragraph (line 12):** list Trivy explicitly.
+
+```
+Find:
+Detection is delegated entirely to best-in-class OSS engines (Checkov, Semgrep, CodeQL, and future scanners).
+
+Replace with:
+Detection is delegated entirely to best-in-class OSS engines (Checkov, Semgrep, CodeQL, Trivy, and more).
+```
+
+**Change 3 — Inputs table:** add `trivy-enabled` and `trivy-image` rows after the `ast-rules` row.
+
+```
+| `trivy-enabled` | `true` | Enable Trivy filesystem + image scanning. Requires trivy binary ≥ v0.51.1 on the runner. |
+| `trivy-image` | `""` | Docker image reference for `trivy image` scan. Skipped when empty. Only used when `trivy-enabled` is `true`. |
+```
+
+- [ ] **Step 16: Commit (PR 1 ready)**
 
 ```bash
-git add packages/action/src/audit_packs_action/cli.py action.yml Dockerfile
-git commit -m "feat: wire Trivy into analyze/assess pipeline and action.yml (PR 1)"
+git add packages/action/src/audit_packs_action/cli.py action.yml Dockerfile README.md tests/test_cli_trivy_wiring.py
+git commit -m "feat: wire Trivy into analyze/assess pipeline, action.yml, README (PR 1)"
 ```
+
+### Task 3 Rollback
+
+If the full test suite fails mid-task or after commit:
+
+- **During Steps 1–14 (before commit):** `git checkout packages/action/src/audit_packs_action/cli.py action.yml Dockerfile README.md` — reverts all cli/action/Dockerfile/README changes while leaving Tasks 1–2 commits intact.
+- **After Step 16 commit (suite fails later):** `git reset --soft HEAD~1` — un-commits Task 3 while keeping changes staged; fix the regression and re-commit.
+- **If only the findings blocks (Steps 5 or 9) are wrong:** `git checkout packages/action/src/audit_packs_action/cli.py`, then re-apply only Steps 1–4 and 6–8 (the signature and asyncio.run changes are safe), then redo Steps 5 and 9 with the corrected find-strings from this plan.
+- **If only the README changes (Step 15) are wrong:** `git checkout README.md` and redo only Step 15.
 
 ---
 
@@ -1728,7 +1882,35 @@ Replace with:
 
 - [ ] **Step 3: Add tfsec + gitleaks tasks to _run_scans_parallel() inside analyze()**
 
-Find inside `_run_scans_parallel()`:
+**Step 3a:** Update the engine import block at the top of `_run_scans_parallel()` (added in Task 3 Step 3) to include `TfsecEngine` and `GitleaksEngine`.
+
+Find (inside `_run_scans_parallel()`, the consolidated import block from Task 3):
+
+```python
+        from audit_packs_action.engines import (
+            CheckovEngine,
+            SemgrepEngine,
+            CodeQLEngine,
+            ASTEngine,
+            TrivyEngine,
+        )
+```
+
+Replace with:
+
+```python
+        from audit_packs_action.engines import (
+            CheckovEngine,
+            SemgrepEngine,
+            CodeQLEngine,
+            ASTEngine,
+            TrivyEngine,
+            TfsecEngine,
+            GitleaksEngine,
+        )
+```
+
+**Step 3b:** Add tfsec and gitleaks task variables. Find inside `_run_scans_parallel()`:
 
 ```python
         trivy_img_task = (
@@ -1743,8 +1925,6 @@ Find inside `_run_scans_parallel()`:
 Add immediately after (still inside the function, before the `tasks = [...]` line):
 
 ```python
-        from audit_packs_action.engines import TfsecEngine, GitleaksEngine
-
         tfsec_task = (
             asyncio.create_task(TfsecEngine().run_scan_async(repo_dir, {}))
             if tfsec_enabled
@@ -1887,9 +2067,18 @@ Replace with:
 
 - [ ] **Step 5: Add tfsec and gitleaks findings to analyze() pipeline**
 
-Find the Trivy findings block added in Task 3:
+**⚠️ Disambiguation:** The trivy findings block appears identically in both `analyze()` and `assess()`. The find-string below includes the unique anchor `rule_confidences.update(extract_rule_confidences(ast_sarif, "ast"))`, which in `analyze()` flows directly into `findings = []` with no intervening code.
+
+Find the Trivy findings block in `analyze()` (include unique anchor at top):
 
 ```python
+    rule_confidences.update(extract_rule_confidences(ast_sarif, "ast"))
+
+    findings = []
+    findings += sarif_to_findings(checkov_sarif, "checkov")
+    findings += sarif_to_findings(semgrep_sarif, "semgrep")
+    findings += sarif_to_findings(codeql_sarif, "codeql")
+    findings += sarif_to_findings(ast_sarif, "ast")
     trivy_runs = trivy_fs_sarif.get("runs", []) + trivy_img_sarif.get("runs", [])
     if trivy_runs:
         merged_trivy = {"runs": trivy_runs}
@@ -1897,9 +2086,21 @@ Find the Trivy findings block added in Task 3:
         findings += sarif_to_findings(merged_trivy, "trivy")
 ```
 
-Add immediately after:
+Replace with:
 
 ```python
+    rule_confidences.update(extract_rule_confidences(ast_sarif, "ast"))
+
+    findings = []
+    findings += sarif_to_findings(checkov_sarif, "checkov")
+    findings += sarif_to_findings(semgrep_sarif, "semgrep")
+    findings += sarif_to_findings(codeql_sarif, "codeql")
+    findings += sarif_to_findings(ast_sarif, "ast")
+    trivy_runs = trivy_fs_sarif.get("runs", []) + trivy_img_sarif.get("runs", [])
+    if trivy_runs:
+        merged_trivy = {"runs": trivy_runs}
+        rule_confidences.update(extract_rule_confidences(merged_trivy, "trivy"))
+        findings += sarif_to_findings(merged_trivy, "trivy")
     if tfsec_sarif.get("runs"):
         rule_confidences.update(extract_rule_confidences(tfsec_sarif, "tfsec"))
         findings += sarif_to_findings(tfsec_sarif, "tfsec")
@@ -1930,13 +2131,56 @@ Replace with:
 
 - [ ] **Step 7: Update _run_scans_parallel_assess() inside assess()**
 
-Find inside `_run_scans_parallel_assess()`, after the trivy tasks:
+Find the nested `async def _run_scans_parallel_assess():` function (as deposited by Task 3 Step 7) and replace it entirely. Use the full function body below as the find-string:
 
 ```python
+    async def _run_scans_parallel_assess():
+        import asyncio
+        from audit_packs_action.engines import (
+            CheckovEngine,
+            SemgrepEngine,
+            ASTEngine,
+            TrivyEngine,
+        )
+
+        checkov_task = asyncio.create_task(CheckovEngine().run_scan_async(repo_dir, {}))
+        semgrep_task = asyncio.create_task(
+            SemgrepEngine().run_scan_async(repo_dir, {"rules_path": rules_path})
+        )
+        ast_task = asyncio.create_task(
+            ASTEngine().run_scan_async(repo_dir, {"rules_dir": ast_rules_dir})
+        )
+        trivy_fs_task = (
+            asyncio.create_task(TrivyEngine().run_scan_async(repo_dir, {}))
+            if trivy_enabled
+            else None
+        )
+        trivy_img_task = (
+            asyncio.create_task(
+                TrivyEngine().run_scan_async("", {"image": trivy_image})
+            )
+            if (trivy_enabled and trivy_image)
+            else None
+        )
+
+        tasks = [checkov_task, semgrep_task, ast_task]
+        if trivy_fs_task:
+            tasks.append(trivy_fs_task)
+        if trivy_img_task:
+            tasks.append(trivy_img_task)
+        results = await asyncio.gather(*tasks)
+
+        c_sarif, s_sarif, a_sarif = results[0], results[1], results[2]
+        idx = 3
+        t_fs = results[idx] if trivy_fs_task else {"runs": []}
+        if trivy_fs_task:
+            idx += 1
+        t_img = results[idx] if trivy_img_task else {"runs": []}
+
         return c_sarif, s_sarif, a_sarif, t_fs, t_img
 ```
 
-Replace the full function:
+Replace with:
 
 ```python
     async def _run_scans_parallel_assess():
@@ -2065,9 +2309,18 @@ Replace with:
 
 - [ ] **Step 9: Add tfsec and gitleaks findings to assess() pipeline**
 
-Find the Trivy findings block in `assess()` (added in Task 3):
+**⚠️ Disambiguation:** The trivy findings block appears identically in both `analyze()` and `assess()`. The find-string below includes the unique anchor `all_file_texts = _read_all_files(repo_dir)`, which precedes `findings = []` only in `assess()`.
+
+Find the Trivy findings block in `assess()` (include `all_file_texts` anchor):
 
 ```python
+    all_file_texts = _read_all_files(repo_dir)
+
+    findings = []
+    findings += sarif_to_findings(checkov_sarif, "checkov")
+    findings += sarif_to_findings(semgrep_sarif, "semgrep")
+    findings += sarif_to_findings(codeql_sarif, "codeql")
+    findings += sarif_to_findings(ast_sarif, "ast")
     trivy_runs = trivy_fs_sarif.get("runs", []) + trivy_img_sarif.get("runs", [])
     if trivy_runs:
         merged_trivy = {"runs": trivy_runs}
@@ -2075,9 +2328,21 @@ Find the Trivy findings block in `assess()` (added in Task 3):
         findings += sarif_to_findings(merged_trivy, "trivy")
 ```
 
-Add immediately after:
+Replace with:
 
 ```python
+    all_file_texts = _read_all_files(repo_dir)
+
+    findings = []
+    findings += sarif_to_findings(checkov_sarif, "checkov")
+    findings += sarif_to_findings(semgrep_sarif, "semgrep")
+    findings += sarif_to_findings(codeql_sarif, "codeql")
+    findings += sarif_to_findings(ast_sarif, "ast")
+    trivy_runs = trivy_fs_sarif.get("runs", []) + trivy_img_sarif.get("runs", [])
+    if trivy_runs:
+        merged_trivy = {"runs": trivy_runs}
+        rule_confidences.update(extract_rule_confidences(merged_trivy, "trivy"))
+        findings += sarif_to_findings(merged_trivy, "trivy")
     if tfsec_sarif.get("runs"):
         rule_confidences.update(extract_rule_confidences(tfsec_sarif, "tfsec"))
         findings += sarif_to_findings(tfsec_sarif, "tfsec")
@@ -2153,12 +2418,13 @@ RUN curl -sLo /tmp/gitleaks.tar.gz \
     && rm /tmp/gitleaks.tar.gz
 ```
 
-- [ ] **Step 13: Update README Supported Scanners table**
+- [ ] **Step 13: Update README Supported Scanners table (tfsec + gitleaks)**
 
-Find the scanners table in `README.md`:
+By this point Task 3 has already flipped `Trivy` to `Supported`. Only target the remaining two rows:
+
+Find in `README.md`:
 
 ```markdown
-| Trivy   | Planned |
 | tfsec   | Planned |
 | gitleaks | Planned |
 ```
@@ -2166,22 +2432,212 @@ Find the scanners table in `README.md`:
 Replace with:
 
 ```markdown
-| Trivy   | Supported |
 | tfsec   | Supported |
 | gitleaks | Supported |
 ```
 
-- [ ] **Step 14: Run full suite**
+- [ ] **Step 14: Add CLI wiring integration tests for tfsec and gitleaks**
+
+Create `tests/test_cli_tfsec_gitleaks_wiring.py`:
+
+```python
+"""Integration tests: verify tfsec_enabled/gitleaks_enabled route engines into the pipeline."""
+from unittest.mock import patch
+
+import pytest
+
+_EMPTY_SARIF = {"runs": []}
+
+
+def test_analyze_signature_accepts_tfsec_gitleaks_params():
+    import inspect
+    from audit_packs_action.cli import analyze
+    sig = inspect.signature(analyze)
+    assert "tfsec_enabled" in sig.parameters
+    assert "gitleaks_enabled" in sig.parameters
+    assert sig.parameters["tfsec_enabled"].default is False
+    assert sig.parameters["gitleaks_enabled"].default is False
+
+
+def test_assess_signature_accepts_tfsec_gitleaks_params():
+    import inspect
+    from audit_packs_action.cli import assess
+    sig = inspect.signature(assess)
+    assert "tfsec_enabled" in sig.parameters
+    assert "gitleaks_enabled" in sig.parameters
+
+
+def test_analyze_sync_path_calls_run_tfsec_when_enabled(tmp_path):
+    from audit_packs_action.cli import analyze
+
+    tfsec_called = []
+
+    def _mock_run_tfsec(target):
+        tfsec_called.append(target)
+        return _EMPTY_SARIF
+
+    with (
+        patch("asyncio.run", side_effect=RuntimeError("nested asyncio.run")),
+        patch("audit_packs_action.cli.run_checkov", return_value=_EMPTY_SARIF),
+        patch("audit_packs_action.cli.run_semgrep", return_value=_EMPTY_SARIF),
+        patch("audit_packs_action.cli.run_ast_rules", return_value=_EMPTY_SARIF),
+        patch("audit_packs_action.cli.run_trivy_fs", return_value=_EMPTY_SARIF),
+        patch("audit_packs_action.cli.run_trivy_image", return_value=_EMPTY_SARIF),
+        patch("audit_packs_action.cli.run_tfsec", side_effect=_mock_run_tfsec),
+        patch("audit_packs_action.cli.run_gitleaks", return_value=_EMPTY_SARIF),
+    ):
+        try:
+            analyze(str(tmp_path), {}, str(tmp_path), "", ["nist-800-53"], tfsec_enabled=True)
+        except RuntimeError:
+            pass
+
+    assert tfsec_called, "run_tfsec was not called despite tfsec_enabled=True"
+
+
+def test_analyze_sync_path_calls_run_gitleaks_when_enabled(tmp_path):
+    from audit_packs_action.cli import analyze
+
+    gitleaks_called = []
+
+    def _mock_run_gitleaks(target):
+        gitleaks_called.append(target)
+        return _EMPTY_SARIF
+
+    with (
+        patch("asyncio.run", side_effect=RuntimeError("nested asyncio.run")),
+        patch("audit_packs_action.cli.run_checkov", return_value=_EMPTY_SARIF),
+        patch("audit_packs_action.cli.run_semgrep", return_value=_EMPTY_SARIF),
+        patch("audit_packs_action.cli.run_ast_rules", return_value=_EMPTY_SARIF),
+        patch("audit_packs_action.cli.run_trivy_fs", return_value=_EMPTY_SARIF),
+        patch("audit_packs_action.cli.run_trivy_image", return_value=_EMPTY_SARIF),
+        patch("audit_packs_action.cli.run_tfsec", return_value=_EMPTY_SARIF),
+        patch("audit_packs_action.cli.run_gitleaks", side_effect=_mock_run_gitleaks),
+    ):
+        try:
+            analyze(str(tmp_path), {}, str(tmp_path), "", ["nist-800-53"], gitleaks_enabled=True)
+        except RuntimeError:
+            pass
+
+    assert gitleaks_called, "run_gitleaks was not called despite gitleaks_enabled=True"
+
+
+def test_assess_sync_path_calls_run_tfsec_when_enabled(tmp_path):
+    from audit_packs_action.cli import assess
+
+    tfsec_called = []
+
+    def _mock_run_tfsec(target):
+        tfsec_called.append(target)
+        return _EMPTY_SARIF
+
+    with (
+        patch("asyncio.run", side_effect=RuntimeError("nested asyncio.run")),
+        patch("audit_packs_action.cli.run_checkov", return_value=_EMPTY_SARIF),
+        patch("audit_packs_action.cli.run_semgrep", return_value=_EMPTY_SARIF),
+        patch("audit_packs_action.cli.run_ast_rules", return_value=_EMPTY_SARIF),
+        patch("audit_packs_action.cli.run_trivy_fs", return_value=_EMPTY_SARIF),
+        patch("audit_packs_action.cli.run_trivy_image", return_value=_EMPTY_SARIF),
+        patch("audit_packs_action.cli.run_tfsec", side_effect=_mock_run_tfsec),
+        patch("audit_packs_action.cli.run_gitleaks", return_value=_EMPTY_SARIF),
+    ):
+        try:
+            assess(str(tmp_path), str(tmp_path), "", ["nist-800-53"], tfsec_enabled=True)
+        except RuntimeError:
+            pass
+
+    assert tfsec_called, "run_tfsec was not called in assess() despite tfsec_enabled=True"
+
+
+def test_assess_sync_path_calls_run_gitleaks_when_enabled(tmp_path):
+    from audit_packs_action.cli import assess
+
+    gitleaks_called = []
+
+    def _mock_run_gitleaks(target):
+        gitleaks_called.append(target)
+        return _EMPTY_SARIF
+
+    with (
+        patch("asyncio.run", side_effect=RuntimeError("nested asyncio.run")),
+        patch("audit_packs_action.cli.run_checkov", return_value=_EMPTY_SARIF),
+        patch("audit_packs_action.cli.run_semgrep", return_value=_EMPTY_SARIF),
+        patch("audit_packs_action.cli.run_ast_rules", return_value=_EMPTY_SARIF),
+        patch("audit_packs_action.cli.run_trivy_fs", return_value=_EMPTY_SARIF),
+        patch("audit_packs_action.cli.run_trivy_image", return_value=_EMPTY_SARIF),
+        patch("audit_packs_action.cli.run_tfsec", return_value=_EMPTY_SARIF),
+        patch("audit_packs_action.cli.run_gitleaks", side_effect=_mock_run_gitleaks),
+    ):
+        try:
+            assess(str(tmp_path), str(tmp_path), "", ["nist-800-53"], gitleaks_enabled=True)
+        except RuntimeError:
+            pass
+
+    assert gitleaks_called, "run_gitleaks was not called in assess() despite gitleaks_enabled=True"
+```
+
+- [ ] **Step 15: Run full suite**
 
 ```bash
 uv run pytest tests/ -v --ignore=tests/test_live_llm.py --ignore=tests/test_real_world_repos.py -q 2>&1 | tail -10
 ```
 
-Expected: 0 failures.
+Expected: 0 failures (includes the new tfsec/gitleaks wiring tests).
 
-- [ ] **Step 15: Commit (PR 2 ready)**
+- [ ] **Step 16: Update README.md + pyproject.toml SEO (PR 2)**
+
+Step 13 already handled the Supported Scanners table. This step covers the prose description, new input rows, and package metadata.
+
+**README.md — Change 1: description paragraph (line 12):** list all new scanners.
+
+```
+Find:
+Detection is delegated entirely to best-in-class OSS engines (Checkov, Semgrep, CodeQL, Trivy, and more).
+
+Replace with:
+Detection is delegated entirely to best-in-class OSS engines (Checkov, Semgrep, CodeQL, Trivy, tfsec, and gitleaks).
+```
+
+**README.md — Change 2: Inputs table:** add `tfsec-enabled` and `gitleaks-enabled` rows after the `trivy-image` row added in Task 3.
+
+```
+| `tfsec-enabled` | `false` | Enable tfsec IaC misconfiguration scanning. Requires tfsec binary ≥ v1.28.11 on the runner. |
+| `gitleaks-enabled` | `true` | Enable gitleaks secret detection. Requires gitleaks binary ≥ v8.18.4 on the runner. |
+```
+
+**packages/action/pyproject.toml — keywords:** add scanner names and capability tags so PyPI search surfaces this package for Trivy/tfsec/gitleaks users.
+
+```
+Find:
+    "pci-dss", "fedramp", "checkov", "semgrep", "codeql", "github-action", "iac",
+    "sast", "oscal", "grc", "evidence"
+
+Replace with:
+    "pci-dss", "fedramp", "checkov", "semgrep", "codeql", "trivy", "tfsec", "gitleaks",
+    "github-action", "iac", "sast", "container-scanning", "secret-scanning", "oscal", "grc", "evidence"
+```
+
+**packages/action/pyproject.toml — description:** update to name the full scanner set.
+
+```
+Find:
+description = "GitHub Action that maps IaC security findings to compliance framework controls and posts evidence-backed inline PR review comments."
+
+Replace with:
+description = "GitHub Action that maps security findings (Checkov, Semgrep, Trivy, tfsec, gitleaks) to compliance framework controls with evidence-backed audit packaging."
+```
+
+- [ ] **Step 17: Commit (PR 2 ready)**
 
 ```bash
-git add packages/action/src/audit_packs_action/cli.py packages/action/src/audit_packs_action/engines.py action.yml Dockerfile README.md
-git commit -m "feat: wire tfsec and gitleaks into pipeline, action.yml, Dockerfile (PR 2)"
+git add packages/action/src/audit_packs_action/cli.py packages/action/src/audit_packs_action/engines.py action.yml Dockerfile README.md packages/action/pyproject.toml tests/test_cli_tfsec_gitleaks_wiring.py
+git commit -m "feat: wire tfsec and gitleaks into pipeline; update README + pyproject SEO (PR 2)"
 ```
+
+### Task 6 Rollback
+
+If the full test suite fails mid-task or after commit:
+
+- **During Steps 1–15 (before commit):** `git checkout packages/action/src/audit_packs_action/cli.py packages/action/src/audit_packs_action/engines.py action.yml Dockerfile README.md packages/action/pyproject.toml` — reverts all changes while keeping Tasks 4–5 commits intact.
+- **After Step 17 commit (suite fails later):** `git reset --soft HEAD~1` — un-commits Task 6 changes, keeps them staged; fix then re-commit.
+- **If only Step 3a (import consolidation) is wrong:** `git checkout packages/action/src/audit_packs_action/engines.py`, then re-apply only Task 4 Step 4 (which adds TfsecEngine/GitleaksEngine to engines.py without the parallel import change inside `_run_scans_parallel()`), then redo Step 3a.
+- **If only the README/SEO changes (Step 16) are wrong:** `git checkout README.md packages/action/pyproject.toml` and redo only Step 16.
