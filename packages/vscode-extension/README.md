@@ -1,6 +1,6 @@
 # Audit Packs Compliance Scanner
 
-[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/prakharsingh.audit-packs-vscode?style=for-the-badge&logo=visual-studio-code)](https://marketplace.visualstudio.com/items?itemName=prakharsingh.audit-packs-vscode)
+[![Open VSX](https://img.shields.io/open-vsx/v/prakharsingh/audit-packs-vscode?style=for-the-badge&logo=openvsx)](https://open-vsx.org/extension/prakharsingh/audit-packs-vscode)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge)](LICENSE)
 [![GitHub Repository](https://img.shields.io/badge/GitHub-audit--packs-181717?style=for-the-badge&logo=github)](https://github.com/prakharsingh/audit-packs)
 
@@ -34,13 +34,25 @@ pip install audit-packs
 
 ### Installation
 
-1.  Open **VS Code**.
-2.  Go to the **Extensions** view (`Ctrl+Shift+X` or `Cmd+Shift+X`).
-3.  Search for **Audit Packs Compliance Scanner** and click **Install**.
-4.  Alternatively, install via command line:
-    ```bash
-    code --install-extension prakharsingh.audit-packs-vscode
-    ```
+#### Open VSX Registry (e.g. VSCodium)
+1. Open your editor's **Extensions** view (`Ctrl+Shift+X` or `Cmd+Shift+X`).
+2. Search for **Audit Packs Compliance Scanner** and click **Install**.
+3. Alternatively, install via command line:
+   ```bash
+   codium --install-extension prakharsingh.audit-packs-vscode
+   ```
+
+#### Local Manual Installation (Recommended for VS Code)
+Since the extension is optimized for local environments and source builds:
+1. Build and package the extension to a `.vsix` file:
+   ```bash
+   cd packages/vscode-extension
+   npm install && npm run compile && npx vsce package
+   ```
+2. Install the generated `.vsix` file in VS Code:
+   ```bash
+   code --install-extension audit-packs-vscode-0.1.0.vsix
+   ```
 
 ---
 
