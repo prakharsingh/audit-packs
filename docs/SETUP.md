@@ -230,24 +230,19 @@ If these secrets are not configured, the publishing steps will be skipped, allow
 
 ## 📦 6. Automatic PyPI Publishing
 
-To automate Python package builds and publication to PyPI, the repository release workflow `.github/workflows/release.yml` includes an OIDC-based trusted publishing flow.
+To automate Python package builds and publication to PyPI, the repository release workflow `.github/workflows/release.yml` publishes the workspace packages using a PyPI API token.
 
 ### Triggering the Workflow
 Whenever a commit on the `main` branch triggers a new version release via `python-semantic-release`, the workflow automatically:
 1. Installs the dependencies and runs the test suite.
 2. Generates the version bump commit and tag.
 3. Builds the source and wheel distributions for all 5 workspace modules (`audit-packs-core`, `audit-packs-mapping`, `audit-packs-evidence`, `audit-packs-ai`, and `audit-packs`).
-4. Generates OIDC identity credentials and publishes the packages to PyPI.
+4. Publishes all package distributions to PyPI.
 
-### Setup Instructions on PyPI
-Before the publication step can run successfully, the repository owner must register the repository as a trusted publisher on PyPI:
-1. Log in to [PyPI](https://pypi.org) and navigate to **Account Settings**.
-2. Click **Add a new publisher** -> select **GitHub**.
-3. For each of the 5 packages (`audit-packs-core`, `audit-packs-mapping`, `audit-packs-evidence`, `audit-packs-ai`, and `audit-packs`), register a publisher with:
-   - **GitHub Repository Owner**: `prakharsingh`
-   - **GitHub Repository Name**: `audit-packs`
-   - **Workflow Name**: `release.yml`
-   - **Environment**: (leave blank)
+### Setup Instructions
+Before the publication step can run successfully, you must add your PyPI API token as a repository secret:
+1. Generate an API token from your [PyPI Account Settings](https://pypi.org) (with user-wide scope to allow creating the new workspace projects).
+2. Add the token as a repository secret named `PYPI_API_TOKEN` in your GitHub repository (**Settings** > **Secrets and variables** > **Actions** > **New repository secret**).
 
 ---
 
