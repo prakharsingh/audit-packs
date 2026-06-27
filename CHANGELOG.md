@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.5.5 (2026-06-27)
+
+### Bug Fixes
+
+- **ci**: Switch PyPI publishing from OIDC to PYPI_API_TOKEN secret
+  ([`9cc07b7`](https://github.com/prakharsingh/audit-packs/commit/9cc07b7652a5972ffccc0c388c72a8f46e8545a4))
+
+
 ## v0.5.4 (2026-06-27)
 
 ### Bug Fixes
