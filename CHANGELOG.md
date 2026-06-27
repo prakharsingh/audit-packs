@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.5.4 (2026-06-27)
+
+### Bug Fixes
+
+- **ci**: Fix permission denied on package source egg-info dirs during build
+  ([`f86c23f`](https://github.com/prakharsingh/audit-packs/commit/f86c23f423af70f292e7e93a9775dafca7b97ac9))
+
+
 ## v0.5.3 (2026-06-27)
 
 ### Bug Fixes
