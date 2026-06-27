@@ -629,4 +629,438 @@ def build_agents(frameworks: list[str], packs_dir: str) -> list[DetectionAgent]:
         agents.append(FedRAMPAgent())
     if "org-policy" in frameworks:
         agents.append(OrgPolicyAgent(packs_dir))
+    if "nist-800-53" in frameworks:
+        agents.append(Nist80053Agent())
     return agents
+
+
+class Nist80053Agent(DetectionAgent):
+    framework = "nist-800-53"
+
+    def detect(self, changed_files: dict[str, str]) -> dict:
+        results = []
+        rules = [{"id": "NIST-800-53-001", "properties": {"confidence": "HIGH"}}]
+
+        pre_sorted_operators = ["===", "==", ">=", "<=", "!=", "~=", ">", "<"]
+
+        for file_path, text in changed_files.items():
+            basename = os.path.basename(file_path)
+            lines = text.splitlines()
+
+            # 1. requirements.txt
+            if basename == "requirements.txt" or file_path.endswith("requirements.txt"):
+                for i, line in enumerate(lines, start=1):
+                    cleaned = line.strip()
+                    if (
+                        not cleaned
+                        or cleaned.startswith("#")
+                        or cleaned.startswith("-")
+                    ):
+                        continue
+                    pkg_spec = cleaned.split(";")[0].strip()
+                    if not pkg_spec:
+                        continue
+                    has_operator = any(op in pkg_spec for op in pre_sorted_operators)
+                    if has_operator:
+                        for op in pre_sorted_operators:
+                            if op in pkg_spec:
+                                parts = pkg_spec.split(op)
+                                if len(parts) > 1:
+                                    version_part = parts[1].strip()
+                                    if "*" in version_part:
+                                        results.append(
+                                            self._create_finding(
+                                                file_path,
+                                                i,
+                                                line,
+                                                cleaned,
+                                                "requirements.txt wildcard version",
+                                            )
+                                        )
+                                break
+                    else:
+                        pkg_name = pkg_spec.split("[")[0].strip()
+                        if re.match(r"^[a-zA-Z0-9][-a-zA-Z0-9_.]*$", pkg_name):
+                            results.append(
+                                self._create_finding(
+                                    file_path,
+                                    i,
+                                    line,
+                                    cleaned,
+                                    "requirements.txt unpinned dependency",
+                                )
+                            )
+
+            # 2. package.json
+            elif basename == "package.json":
+                try:
+                    import json
+
+                    data = json.loads(text)
+                    for key in [
+                        "dependencies",
+                        "devDependencies",
+                        "peerDependencies",
+                        "optionalDependencies",
+                    ]:
+                        if key in data and isinstance(data[key], dict):
+                            for pkg, ver in data[key].items():
+                                if not isinstance(ver, str):
+                                    continue
+                                ver_clean = ver.strip()
+                                if (
+                                    ver_clean.startswith(
+                                        ("git+", "http:", "https:", "file:", "github:")
+                                    )
+                                    or "/" in ver_clean
+                                ):
+                                    continue
+                                if (
+                                    "*" in ver_clean
+                                    or "x" in ver_clean.lower()
+                                    or ver_clean.lower() in ("latest", "")
+                                ):
+                                    line_no = self._find_line_number(lines, pkg, ver)
+                                    results.append(
+                                        self._create_finding(
+                                            file_path,
+                                            line_no,
+                                            lines[line_no - 1]
+                                            if 0 < line_no <= len(lines)
+                                            else line,
+                                            f'"{pkg}": "{ver}"',
+                                            "package.json wildcard version",
+                                        )
+                                    )
+                except Exception:
+                    pass
+
+            # 3. Cargo.toml & 4. pyproject.toml
+            elif basename in ("Cargo.toml", "pyproject.toml"):
+                try:
+                    import tomllib
+
+                    data = tomllib.loads(text)
+
+                    # For Cargo.toml
+                    if basename == "Cargo.toml":
+
+                        def check_cargo_deps(dep_dict):
+                            for pkg, dep_info in dep_dict.items():
+                                if isinstance(dep_info, str):
+                                    if "*" in dep_info:
+                                        line_no = self._find_toml_line(lines, pkg)
+                                        results.append(
+                                            self._create_finding(
+                                                file_path,
+                                                line_no,
+                                                lines[line_no - 1]
+                                                if 0 < line_no <= len(lines)
+                                                else line,
+                                                f'{pkg} = "{dep_info}"',
+                                                "Cargo.toml wildcard version",
+                                            )
+                                        )
+                                elif isinstance(dep_info, dict):
+                                    ver = dep_info.get("version")
+                                    if isinstance(ver, str) and "*" in ver:
+                                        line_no = self._find_toml_line(lines, pkg)
+                                        results.append(
+                                            self._create_finding(
+                                                file_path,
+                                                line_no,
+                                                lines[line_no - 1]
+                                                if 0 < line_no <= len(lines)
+                                                else line,
+                                                f'version = "{ver}"',
+                                                "Cargo.toml wildcard version",
+                                            )
+                                        )
+
+                        for key, val in data.items():
+                            if key in (
+                                "dependencies",
+                                "dev-dependencies",
+                                "build-dependencies",
+                            ) and isinstance(val, dict):
+                                check_cargo_deps(val)
+                            elif key == "target" and isinstance(val, dict):
+                                for target_name, target_val in val.items():
+                                    if isinstance(target_val, dict):
+                                        for sub_key, sub_val in target_val.items():
+                                            if sub_key in (
+                                                "dependencies",
+                                                "dev-dependencies",
+                                                "build-dependencies",
+                                            ) and isinstance(sub_val, dict):
+                                                check_cargo_deps(sub_val)
+
+                    # For pyproject.toml
+                    elif basename == "pyproject.toml":
+                        # Standard PEP 621
+                        project = data.get("project", {})
+                        if isinstance(project, dict):
+                            deps = project.get("dependencies", [])
+                            if isinstance(deps, list):
+                                for dep in deps:
+                                    if isinstance(dep, str):
+                                        has_operator = any(
+                                            op in dep for op in pre_sorted_operators
+                                        )
+                                        if has_operator:
+                                            for op in pre_sorted_operators:
+                                                if op in dep:
+                                                    parts = dep.split(op)
+                                                    if len(parts) > 1:
+                                                        version_part = parts[1].strip()
+                                                        if "*" in version_part:
+                                                            line_no = (
+                                                                self._find_toml_line(
+                                                                    lines,
+                                                                    dep.split(op)[
+                                                                        0
+                                                                    ].strip(),
+                                                                )
+                                                            )
+                                                            results.append(
+                                                                self._create_finding(
+                                                                    file_path,
+                                                                    line_no,
+                                                                    lines[line_no - 1]
+                                                                    if 0
+                                                                    < line_no
+                                                                    <= len(lines)
+                                                                    else line,
+                                                                    dep,
+                                                                    "pyproject.toml wildcard dependency",
+                                                                )
+                                                            )
+                                                    break
+                                        else:
+                                            pkg_spec = dep.split(";")[0].strip()
+                                            pkg_name = pkg_spec.split("[")[0].strip()
+                                            if re.match(
+                                                r"^[a-zA-Z0-9][-a-zA-Z0-9_.]*$",
+                                                pkg_name,
+                                            ):
+                                                line_no = self._find_toml_line(
+                                                    lines, pkg_name
+                                                )
+                                                results.append(
+                                                    self._create_finding(
+                                                        file_path,
+                                                        line_no,
+                                                        lines[line_no - 1]
+                                                        if 0 < line_no <= len(lines)
+                                                        else line,
+                                                        dep,
+                                                        "pyproject.toml unpinned dependency",
+                                                    )
+                                                )
+
+                            opt_deps = project.get("optional-dependencies", {})
+                            if isinstance(opt_deps, dict):
+                                for group, dep_list in opt_deps.items():
+                                    if isinstance(dep_list, list):
+                                        for dep in dep_list:
+                                            if isinstance(dep, str):
+                                                has_operator = any(
+                                                    op in dep
+                                                    for op in pre_sorted_operators
+                                                )
+                                                if has_operator:
+                                                    for op in pre_sorted_operators:
+                                                        if op in dep:
+                                                            parts = dep.split(op)
+                                                            if len(parts) > 1:
+                                                                version_part = parts[
+                                                                    1
+                                                                ].strip()
+                                                                if "*" in version_part:
+                                                                    line_no = self._find_toml_line(
+                                                                        lines,
+                                                                        dep.split(op)[
+                                                                            0
+                                                                        ].strip(),
+                                                                    )
+                                                                    results.append(
+                                                                        self._create_finding(
+                                                                            file_path,
+                                                                            line_no,
+                                                                            lines[
+                                                                                line_no
+                                                                                - 1
+                                                                            ]
+                                                                            if 0
+                                                                            < line_no
+                                                                            <= len(
+                                                                                lines
+                                                                            )
+                                                                            else line,
+                                                                            dep,
+                                                                            "pyproject.toml wildcard dependency",
+                                                                        )
+                                                                    )
+                                                            break
+                                                else:
+                                                    pkg_spec = dep.split(";")[0].strip()
+                                                    pkg_name = pkg_spec.split("[")[
+                                                        0
+                                                    ].strip()
+                                                    if re.match(
+                                                        r"^[a-zA-Z0-9][-a-zA-Z0-9_.]*$",
+                                                        pkg_name,
+                                                    ):
+                                                        line_no = self._find_toml_line(
+                                                            lines, pkg_name
+                                                        )
+                                                        results.append(
+                                                            self._create_finding(
+                                                                file_path,
+                                                                line_no,
+                                                                lines[line_no - 1]
+                                                                if 0
+                                                                < line_no
+                                                                <= len(lines)
+                                                                else line,
+                                                                dep,
+                                                                "pyproject.toml unpinned dependency",
+                                                            )
+                                                        )
+
+                        # Poetry
+                        tool = data.get("tool", {})
+                        if isinstance(tool, dict):
+                            poetry = tool.get("poetry", {})
+                            if isinstance(poetry, dict):
+                                poetry_dep_dicts = []
+                                if "dependencies" in poetry and isinstance(
+                                    poetry["dependencies"], dict
+                                ):
+                                    poetry_dep_dicts.append(poetry["dependencies"])
+                                if "dev-dependencies" in poetry and isinstance(
+                                    poetry["dev-dependencies"], dict
+                                ):
+                                    poetry_dep_dicts.append(poetry["dev-dependencies"])
+                                group = poetry.get("group", {})
+                                if isinstance(group, dict):
+                                    for group_name, group_data in group.items():
+                                        if isinstance(group_data, dict):
+                                            deps = group_data.get("dependencies")
+                                            if isinstance(deps, dict):
+                                                poetry_dep_dicts.append(deps)
+
+                                for dep_dict in poetry_dep_dicts:
+                                    for pkg, dep_info in dep_dict.items():
+                                        if isinstance(dep_info, str):
+                                            if "*" in dep_info:
+                                                line_no = self._find_toml_line(
+                                                    lines, pkg
+                                                )
+                                                results.append(
+                                                    self._create_finding(
+                                                        file_path,
+                                                        line_no,
+                                                        lines[line_no - 1]
+                                                        if 0 < line_no <= len(lines)
+                                                        else line,
+                                                        f'{pkg} = "{dep_info}"',
+                                                        "pyproject.toml wildcard dependency",
+                                                    )
+                                                )
+                                        elif isinstance(dep_info, dict):
+                                            ver = dep_info.get("version")
+                                            if isinstance(ver, str) and "*" in ver:
+                                                line_no = self._find_toml_line(
+                                                    lines, pkg
+                                                )
+                                                results.append(
+                                                    self._create_finding(
+                                                        file_path,
+                                                        line_no,
+                                                        lines[line_no - 1]
+                                                        if 0 < line_no <= len(lines)
+                                                        else line,
+                                                        f'version = "{ver}"',
+                                                        "pyproject.toml wildcard dependency",
+                                                    )
+                                                )
+
+                except Exception:
+                    # Fallback line parsing
+                    in_dep_section = False
+                    for i, line in enumerate(lines, start=1):
+                        cleaned = line.strip()
+                        if not cleaned or cleaned.startswith("#"):
+                            continue
+                        if cleaned.startswith("[") and cleaned.endswith("]"):
+                            section = cleaned[1:-1].strip()
+                            if "dependencies" in section or "requires" in section:
+                                in_dep_section = True
+                            else:
+                                in_dep_section = False
+                            continue
+                        if in_dep_section:
+                            if "*" in cleaned:
+                                results.append(
+                                    self._create_finding(
+                                        file_path,
+                                        i,
+                                        line,
+                                        cleaned,
+                                        f"{basename} wildcard dependency",
+                                    )
+                                )
+
+        return {
+            "runs": [
+                {
+                    "tool": {"driver": {"name": "nist-800-53-agent", "rules": rules}},
+                    "results": results,
+                }
+            ]
+        }
+
+    def _create_finding(
+        self, file_path: str, line_no: int, line_text: str, snippet: str, reason: str
+    ) -> dict:
+        return {
+            "ruleId": "NIST-800-53-001",
+            "level": "error",
+            "message": {
+                "text": f"Wildcard/unpinned dependency detected ({reason}). Ensure dependencies are pinned to specific versions to prevent installing packages with known vulnerabilities (CVEs)."
+            },
+            "locations": [
+                {
+                    "physicalLocation": {
+                        "artifactLocation": {"uri": file_path},
+                        "region": {
+                            "startLine": line_no,
+                            "snippet": {"text": line_text.strip()},
+                        },
+                    }
+                }
+            ],
+        }
+
+    def _find_line_number(self, lines: list[str], pkg: str, ver: str) -> int:
+        for i, line in enumerate(lines, start=1):
+            if f'"{pkg}"' in line and f'"{ver}"' in line:
+                return i
+        for i, line in enumerate(lines, start=1):
+            if f'"{pkg}"' in line:
+                return i
+        return 1
+
+    def _find_toml_line(self, lines: list[str], term: str) -> int:
+        pattern = re.compile(rf"(?<![a-zA-Z0-9_.-]){re.escape(term)}(?![a-zA-Z0-9_.-])")
+        for i, line in enumerate(lines, start=1):
+            cleaned = line.strip()
+            if not cleaned or cleaned.startswith("#"):
+                continue
+            if pattern.search(cleaned):
+                return i
+        for i, line in enumerate(lines, start=1):
+            if term in line:
+                return i
+        return 1

@@ -299,3 +299,44 @@ def test_gitleaks_private_key_maps_to_ia5_and_sc13():
     control_ids = {cf.control_id for cf in cfs}
     assert "IA-5" in control_ids
     assert "SC-13" in control_ids
+
+
+def test_nist_agent_wildcard_mapping_to_si2_and_cc74():
+    # 1. NIST mapping to SI-2
+    cfs_nist = map_findings(
+        [
+            Finding(
+                "NIST-800-53-001",
+                "nist-800-53-agent",
+                "requirements.txt",
+                1,
+                "high",
+                "msg",
+                "ev",
+            )
+        ],
+        PACKS,
+        ["nist-800-53"],
+    )
+    assert len(cfs_nist) == 1
+    assert cfs_nist[0].control_id == "SI-2"
+    assert cfs_nist[0].control_title == "Flaw Remediation"
+
+    # 2. SOC2 mapping to CC7.4 (Incident Response and Recovery, which maps to SI-2)
+    cfs_soc2 = map_findings(
+        [
+            Finding(
+                "NIST-800-53-001",
+                "nist-800-53-agent",
+                "requirements.txt",
+                1,
+                "high",
+                "msg",
+                "ev",
+            )
+        ],
+        PACKS,
+        ["soc2"],
+    )
+    assert len(cfs_soc2) >= 1
+    assert any(cf.control_id == "CC7.4" for cf in cfs_soc2)

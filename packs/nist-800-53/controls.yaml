@@ -402,11 +402,14 @@ controls:
   title: Flaw Remediation
   supported_scanners:
   - checkov
+  - nist-800-53-agent
   mappings:
   - engine: checkov
     check_id: CKV_AWS_130
   - engine: checkov
     check_id: CKV_AWS_161
+  - engine: nist-800-53-agent
+    check_id: NIST-800-53-001
   evidence_requirements: []
 - id: SI-3
   title: Malware Protection
