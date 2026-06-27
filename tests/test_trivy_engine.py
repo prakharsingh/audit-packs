@@ -172,3 +172,12 @@ def test_run_trivy_image_convenience():
 
     assert "image" in captured
     assert "myapp:latest" in captured
+
+
+def test_trivy_filenotfound_returns_empty():
+    engine = TrivyEngine()
+    with patch(
+        "asyncio.create_subprocess_exec", side_effect=FileNotFoundError("No such file")
+    ):
+        result = engine.run_scan("/tmp/target", {})
+    assert result == {"runs": []}

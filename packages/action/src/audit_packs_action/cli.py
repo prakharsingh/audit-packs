@@ -225,6 +225,7 @@ def analyze(
     try:
         import asyncio
 
+        coro = _run_scans_parallel()
         (
             checkov_sarif,
             semgrep_sarif,
@@ -234,8 +235,12 @@ def analyze(
             trivy_img_sarif,
             tfsec_sarif,
             gitleaks_sarif,
-        ) = asyncio.run(_run_scans_parallel())
+        ) = asyncio.run(coro)
     except RuntimeError:
+        try:
+            coro.close()
+        except AttributeError:
+            pass
         checkov_sarif = run_checkov(repo_dir)
         semgrep_sarif = run_semgrep(repo_dir, rules_path)
         codeql_sarif = (
@@ -250,6 +255,12 @@ def analyze(
         )
         tfsec_sarif = run_tfsec(repo_dir) if tfsec_enabled else {"runs": []}
         gitleaks_sarif = run_gitleaks(repo_dir) if gitleaks_enabled else {"runs": []}
+    except Exception:
+        try:
+            coro.close()
+        except AttributeError:
+            pass
+        raise
 
     # Run all registered detection agents for Phase 2
     from audit_packs_evidence.agents import build_agents
@@ -265,6 +276,7 @@ def analyze(
                 pass
 
     rule_confidences: dict[str, float] = {}
+    rule_confidences.update(extract_rule_confidences(checkov_sarif, "checkov"))
     rule_confidences.update(extract_rule_confidences(semgrep_sarif, "semgrep"))
     rule_confidences.update(extract_rule_confidences(codeql_sarif, "codeql"))
     rule_confidences.update(extract_rule_confidences(ast_sarif, "ast"))
@@ -495,6 +507,7 @@ def assess(
     try:
         import asyncio
 
+        coro = _run_scans_parallel_assess()
         (
             checkov_sarif,
             semgrep_sarif,
@@ -503,8 +516,12 @@ def assess(
             trivy_img_sarif,
             tfsec_sarif,
             gitleaks_sarif,
-        ) = asyncio.run(_run_scans_parallel_assess())
+        ) = asyncio.run(coro)
     except RuntimeError:
+        try:
+            coro.close()
+        except AttributeError:
+            pass
         checkov_sarif = run_checkov(repo_dir)
         semgrep_sarif = run_semgrep(repo_dir, rules_path)
         ast_sarif = run_ast_rules(repo_dir, ast_rules_dir)
@@ -516,6 +533,12 @@ def assess(
         )
         tfsec_sarif = run_tfsec(repo_dir) if tfsec_enabled else {"runs": []}
         gitleaks_sarif = run_gitleaks(repo_dir) if gitleaks_enabled else {"runs": []}
+    except Exception:
+        try:
+            coro.close()
+        except AttributeError:
+            pass
+        raise
 
     codeql_sarif = (
         read_codeql_sarif(codeql_sarif_dir) if codeql_sarif_dir else {"runs": []}

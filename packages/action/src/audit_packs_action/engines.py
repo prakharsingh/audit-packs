@@ -388,11 +388,15 @@ class TrivyEngine(BaseEngine):
                     out_file,
                     target,
                 ]
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+            except FileNotFoundError:
+                log.warning(f"trivy executable not found: {cmd[0]}. Skipping scan.")
+                return {"runs": []}
             try:
                 _, stderr = await asyncio.wait_for(
                     proc.communicate(), timeout=_DEFAULT_TIMEOUT
@@ -443,11 +447,15 @@ class TfsecEngine(BaseEngine):
                 out_file,
                 target,
             ]
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+            except FileNotFoundError:
+                log.warning(f"tfsec executable not found: {cmd[0]}. Skipping scan.")
+                return {"runs": []}
             try:
                 _, stderr = await asyncio.wait_for(
                     proc.communicate(), timeout=_DEFAULT_TIMEOUT
@@ -497,11 +505,15 @@ class GitleaksEngine(BaseEngine):
                 target,
                 "--no-git",
             ]
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+            except FileNotFoundError:
+                log.warning(f"gitleaks executable not found: {cmd[0]}. Skipping scan.")
+                return {"runs": []}
             try:
                 _, stderr = await asyncio.wait_for(
                     proc.communicate(), timeout=_DEFAULT_TIMEOUT

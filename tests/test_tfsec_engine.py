@@ -123,3 +123,12 @@ def test_run_tfsec_convenience():
     ):
         result = run_tfsec("/some/dir")
     assert result == {"runs": []}
+
+
+def test_tfsec_filenotfound_returns_empty():
+    engine = TfsecEngine()
+    with patch(
+        "asyncio.create_subprocess_exec", side_effect=FileNotFoundError("No such file")
+    ):
+        result = engine.run_scan("/tmp/target", {})
+    assert result == {"runs": []}

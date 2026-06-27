@@ -142,3 +142,12 @@ def test_run_gitleaks_convenience():
     ):
         result = run_gitleaks("/some/dir")
     assert result == {"runs": []}
+
+
+def test_gitleaks_filenotfound_returns_empty():
+    engine = GitleaksEngine()
+    with patch(
+        "asyncio.create_subprocess_exec", side_effect=FileNotFoundError("No such file")
+    ):
+        result = engine.run_scan("/tmp/target", {})
+    assert result == {"runs": []}
