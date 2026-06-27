@@ -4,6 +4,10 @@
   "description": "Scan IaC and custom rules directly in VS Code and map them to compliance frameworks (NIST, SOC2, GDPR, HIPAA)",
   "version": "0.1.0",
   "publisher": "prakharsingh",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/prakharsingh/audit-packs.git"
+  },
   "engines": {
     "vscode": "^1.80.0"
   },
