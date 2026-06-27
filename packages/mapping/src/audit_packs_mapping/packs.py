@@ -16,16 +16,19 @@ def _pack_path(packs_dir: str, pack_id: str) -> str:
     return os.path.join(packs_dir, pack_id, "controls.yaml")
 
 
-def _canonical_index(pack: dict) -> dict[tuple[str, str], tuple[str, str, tuple]]:
-    """(engine, check_id) -> (control_id, control_title, evidence_requirements)"""
-    index: dict[tuple[str, str], tuple[str, str, tuple]] = {}
+def _canonical_index(pack: dict) -> dict[tuple[str, str], list[tuple[str, str, tuple]]]:
+    """(engine, check_id) -> [(control_id, control_title, evidence_requirements), ...]"""
+    index: dict[tuple[str, str], list[tuple[str, str, tuple]]] = {}
     for control in pack["controls"]:
         ev_reqs: tuple = tuple(control.get("evidence_requirements", []))
         for m in control.get("mappings", []):
-            index[(m["engine"], m["check_id"])] = (
-                control["id"],
-                control.get("title", control["id"]),
-                ev_reqs,
+            key = (m["engine"], m["check_id"])
+            index.setdefault(key, []).append(
+                (
+                    control["id"],
+                    control.get("title", control["id"]),
+                    ev_reqs,
+                )
             )
     return index
 
@@ -106,17 +109,19 @@ def map_findings(
                 )
 
         for f in findings:
-            hit = check_index.get((f.engine, f.check_id))
-            if not hit:
-                continue
-            canonical_control_id, canonical_title, canon_ev_reqs = hit
-            if crosswalk_id:
-                for control_id, title, fw_ev_reqs in cw.get(canonical_control_id, []):
-                    results.append(ControlFinding(f, fw, control_id, title, fw_ev_reqs))
-            else:
-                results.append(
-                    ControlFinding(
-                        f, fw, canonical_control_id, canonical_title, canon_ev_reqs
+            hits = check_index.get((f.engine, f.check_id), [])
+            for canonical_control_id, canonical_title, canon_ev_reqs in hits:
+                if crosswalk_id:
+                    for control_id, title, fw_ev_reqs in cw.get(
+                        canonical_control_id, []
+                    ):
+                        results.append(
+                            ControlFinding(f, fw, control_id, title, fw_ev_reqs)
+                        )
+                else:
+                    results.append(
+                        ControlFinding(
+                            f, fw, canonical_control_id, canonical_title, canon_ev_reqs
+                        )
                     )
-                )
     return results

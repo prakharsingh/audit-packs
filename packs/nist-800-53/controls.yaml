@@ -16,6 +16,7 @@ controls:
   title: Boundary Protection
   supported_scanners:
   - checkov
+  - tfsec
   - trivy
   mappings:
   - engine: checkov
@@ -32,6 +33,12 @@ controls:
     check_id: AVD-AWS-0026
   - engine: trivy
     check_id: AVD-AWS-0175
+  - engine: tfsec
+    check_id: aws-ec2-no-public-ip-subnet
+  - engine: tfsec
+    check_id: aws-s3-no-public-buckets
+  - engine: tfsec
+    check_id: aws-s3-no-public-access-with-acl
   evidence_requirements: []
 - id: SC-8
   title: Transmission Confidentiality and Integrity
@@ -65,6 +72,7 @@ controls:
   supported_scanners:
   - checkov
   - fedramp-agent
+  - tfsec
   - trivy
   mappings:
   - engine: checkov
@@ -77,6 +85,8 @@ controls:
     check_id: FEDRAMP-002
   - engine: trivy
     check_id: AVD-AWS-0065
+  - engine: tfsec
+    check_id: aws-kms-auto-rotate-keys
   evidence_requirements: []
 - id: SC-13
   title: Cryptographic Protection
@@ -84,6 +94,7 @@ controls:
   - checkov
   - dataflow-agent
   - fedramp-agent
+  - gitleaks
   - semgrep
   - trivy
   mappings:
@@ -103,6 +114,8 @@ controls:
     check_id: AVD-AWS-0020
   - engine: trivy
     check_id: AVD-AWS-0123
+  - engine: gitleaks
+    check_id: private-key
   evidence_requirements: []
 - id: SC-28
   title: Protection of Information at Rest
@@ -113,6 +126,7 @@ controls:
   - gdpr-agent
   - hipaa-agent
   - semgrep
+  - tfsec
   - trivy
   mappings:
   - engine: checkov
@@ -147,6 +161,12 @@ controls:
     check_id: AVD-AWS-0083
   - engine: trivy
     check_id: AVD-AWS-0065
+  - engine: tfsec
+    check_id: aws-s3-enable-bucket-encryption
+  - engine: tfsec
+    check_id: aws-rds-encrypt-cluster-storage-data
+  - engine: tfsec
+    check_id: aws-ebs-enable-volume-encryption
   evidence_requirements: []
 - id: AC-2
   title: Account Management
@@ -193,6 +213,7 @@ controls:
   supported_scanners:
   - checkov
   - semgrep
+  - tfsec
   mappings:
   - engine: checkov
     check_id: CKV_AWS_40
@@ -200,6 +221,10 @@ controls:
     check_id: CKV_AWS_274
   - engine: semgrep
     check_id: overpermissive-iam
+  - engine: tfsec
+    check_id: aws-iam-no-root-usage
+  - engine: tfsec
+    check_id: aws-iam-no-user-attached-policies
   evidence_requirements: []
 - id: AC-17
   title: Remote Access
@@ -217,17 +242,22 @@ controls:
   title: Identification and Authentication (Organizational Users)
   supported_scanners:
   - checkov
+  - tfsec
   mappings:
   - engine: checkov
     check_id: CKV_AWS_9
   - engine: checkov
     check_id: CKV_AWS_10
+  - engine: tfsec
+    check_id: aws-iam-enforce-mfa
   evidence_requirements: []
 - id: IA-5
   title: Authenticator Management
   supported_scanners:
   - checkov
+  - gitleaks
   - semgrep
+  - tfsec
   - trivy
   mappings:
   - engine: checkov
@@ -238,12 +268,49 @@ controls:
     check_id: AVD-AWS-0025
   - engine: trivy
     check_id: AVD-AWS-0057
+  - engine: tfsec
+    check_id: general-secrets-no-plaintext-exposure
+  - engine: tfsec
+    check_id: aws-ecs-no-plaintext-exposed-creds
+  - engine: gitleaks
+    check_id: aws-access-token
+  - engine: gitleaks
+    check_id: github-pat
+  - engine: gitleaks
+    check_id: github-oauth
+  - engine: gitleaks
+    check_id: github-app-token
+  - engine: gitleaks
+    check_id: github-fine-grained-pat
+  - engine: gitleaks
+    check_id: slack-bot-token
+  - engine: gitleaks
+    check_id: slack-user-token
+  - engine: gitleaks
+    check_id: slack-webhook-url
+  - engine: gitleaks
+    check_id: stripe-access-token
+  - engine: gitleaks
+    check_id: stripe-restricted-key
+  - engine: gitleaks
+    check_id: google-api-key
+  - engine: gitleaks
+    check_id: google-oauth
+  - engine: gitleaks
+    check_id: heroku-api-key
+  - engine: gitleaks
+    check_id: twilio-api-key
+  - engine: gitleaks
+    check_id: generic-api-key
+  - engine: gitleaks
+    check_id: private-key
   evidence_requirements: []
 - id: AU-2
   title: Audit Events
   supported_scanners:
   - checkov
   - soc2-agent
+  - tfsec
   - trivy
   mappings:
   - engine: checkov
@@ -258,6 +325,10 @@ controls:
     check_id: AVD-AWS-0001
   - engine: trivy
     check_id: AVD-AWS-0002
+  - engine: tfsec
+    check_id: aws-cloudtrail-enable-all-regions
+  - engine: tfsec
+    check_id: aws-eks-enable-control-plane-logging
   evidence_requirements: []
 - id: AU-3
   title: Content of Audit Records
@@ -267,6 +338,7 @@ controls:
   - gdpr-agent
   - semgrep
   - soc2-agent
+  - tfsec
   mappings:
   - engine: checkov
     check_id: CKV_AWS_252
@@ -278,6 +350,8 @@ controls:
     check_id: SOC2-001
   - engine: ast
     check_id: AST-003
+  - engine: tfsec
+    check_id: aws-lambda-enable-tracing
   evidence_requirements: []
 - id: AU-9
   title: Protection of Audit Information

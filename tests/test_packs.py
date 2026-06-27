@@ -214,3 +214,88 @@ def test_trivy_avd_maps_to_ia5():
     )
     assert len(cfs) >= 1
     assert any(cf.control_id == "IA-5" for cf in cfs)
+
+
+# --- tfsec mappings ---
+
+
+def test_tfsec_s3_encryption_maps_to_sc28():
+    cfs = map_findings(
+        [
+            Finding(
+                "aws-s3-enable-bucket-encryption",
+                "tfsec",
+                "main.tf",
+                3,
+                "high",
+                "msg",
+                "ev",
+            )
+        ],
+        PACKS,
+        ["nist-800-53"],
+    )
+    assert len(cfs) >= 1
+    assert any(cf.control_id == "SC-28" for cf in cfs)
+
+
+def test_tfsec_iam_no_root_maps_to_ac6():
+    cfs = map_findings(
+        [
+            Finding(
+                "aws-iam-no-root-usage", "tfsec", "main.tf", 1, "critical", "msg", "ev"
+            )
+        ],
+        PACKS,
+        ["nist-800-53"],
+    )
+    assert len(cfs) >= 1
+    assert any(cf.control_id == "AC-6" for cf in cfs)
+
+
+def test_tfsec_secrets_maps_to_ia5():
+    cfs = map_findings(
+        [
+            Finding(
+                "general-secrets-no-plaintext-exposure",
+                "tfsec",
+                "main.tf",
+                5,
+                "high",
+                "msg",
+                "ev",
+            )
+        ],
+        PACKS,
+        ["nist-800-53"],
+    )
+    assert len(cfs) >= 1
+    assert any(cf.control_id == "IA-5" for cf in cfs)
+
+
+# --- gitleaks mappings ---
+
+
+def test_gitleaks_aws_key_maps_to_ia5():
+    cfs = map_findings(
+        [
+            Finding(
+                "aws-access-token", "gitleaks", "config.py", 7, "critical", "msg", "ev"
+            )
+        ],
+        PACKS,
+        ["nist-800-53"],
+    )
+    assert len(cfs) >= 1
+    assert any(cf.control_id == "IA-5" for cf in cfs)
+
+
+def test_gitleaks_private_key_maps_to_ia5_and_sc13():
+    cfs = map_findings(
+        [Finding("private-key", "gitleaks", "config.py", 2, "critical", "msg", "ev")],
+        PACKS,
+        ["nist-800-53"],
+    )
+    control_ids = {cf.control_id for cf in cfs}
+    assert "IA-5" in control_ids
+    assert "SC-13" in control_ids
