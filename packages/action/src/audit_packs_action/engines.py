@@ -357,3 +357,188 @@ class ASTEngine(BaseEngine):
 
 def run_ast_rules(target_dir: str, rules_dir: str) -> dict:
     return ASTEngine().run_scan(target_dir, {"rules_dir": rules_dir})
+
+
+class TrivyEngine(BaseEngine):
+    @property
+    def name(self) -> str:
+        return "trivy"
+
+    async def run_scan_async(self, target: str, options: dict) -> dict:
+        image = options.get("image")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_file = os.path.join(tmpdir, "trivy.sarif")
+            if image:
+                cmd = [
+                    _resolve_executable("trivy"),
+                    "image",
+                    "--format",
+                    "sarif",
+                    "--output",
+                    out_file,
+                    image,
+                ]
+            else:
+                cmd = [
+                    _resolve_executable("trivy"),
+                    "fs",
+                    "--format",
+                    "sarif",
+                    "--output",
+                    out_file,
+                    target,
+                ]
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+            except FileNotFoundError:
+                log.warning(f"trivy executable not found: {cmd[0]}. Skipping scan.")
+                return {"runs": []}
+            try:
+                _, stderr = await asyncio.wait_for(
+                    proc.communicate(), timeout=_DEFAULT_TIMEOUT
+                )
+            except asyncio.TimeoutError as exc:
+                try:
+                    proc.kill()
+                except ProcessLookupError:
+                    pass
+                raise RuntimeError(
+                    f"trivy execution timed out after {_DEFAULT_TIMEOUT} seconds"
+                ) from exc
+            if proc.returncode is not None and proc.returncode >= 2:
+                raise RuntimeError(
+                    f"trivy exited with code {proc.returncode}: "
+                    f"{stderr.decode(errors='replace').strip()}"
+                )
+            if os.path.exists(out_file):
+                try:
+                    with open(out_file) as fh:
+                        return json.load(fh)
+                except json.JSONDecodeError:
+                    pass
+            return {"runs": []}
+
+
+def run_trivy_fs(target_dir: str) -> dict:
+    return TrivyEngine().run_scan(target_dir, {})
+
+
+def run_trivy_image(image: str) -> dict:
+    return TrivyEngine().run_scan("", {"image": image})
+
+
+class TfsecEngine(BaseEngine):
+    @property
+    def name(self) -> str:
+        return "tfsec"
+
+    async def run_scan_async(self, target: str, options: dict) -> dict:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_file = os.path.join(tmpdir, "tfsec.sarif")
+            cmd = [
+                _resolve_executable("tfsec"),
+                "--format",
+                "sarif",
+                "--out",
+                out_file,
+                target,
+            ]
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+            except FileNotFoundError:
+                log.warning(f"tfsec executable not found: {cmd[0]}. Skipping scan.")
+                return {"runs": []}
+            try:
+                _, stderr = await asyncio.wait_for(
+                    proc.communicate(), timeout=_DEFAULT_TIMEOUT
+                )
+            except asyncio.TimeoutError as exc:
+                try:
+                    proc.kill()
+                except ProcessLookupError:
+                    pass
+                raise RuntimeError(
+                    f"tfsec execution timed out after {_DEFAULT_TIMEOUT} seconds"
+                ) from exc
+            if proc.returncode is not None and proc.returncode >= 2:
+                raise RuntimeError(
+                    f"tfsec exited with code {proc.returncode}: "
+                    f"{stderr.decode(errors='replace').strip()}"
+                )
+            if os.path.exists(out_file):
+                try:
+                    with open(out_file) as fh:
+                        return json.load(fh)
+                except json.JSONDecodeError:
+                    pass
+            return {"runs": []}
+
+
+def run_tfsec(target_dir: str) -> dict:
+    return TfsecEngine().run_scan(target_dir, {})
+
+
+class GitleaksEngine(BaseEngine):
+    @property
+    def name(self) -> str:
+        return "gitleaks"
+
+    async def run_scan_async(self, target: str, options: dict) -> dict:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_file = os.path.join(tmpdir, "gitleaks.sarif")
+            cmd = [
+                _resolve_executable("gitleaks"),
+                "detect",
+                "--report-format",
+                "sarif",
+                "--report-path",
+                out_file,
+                "--source",
+                target,
+                "--no-git",
+            ]
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+            except FileNotFoundError:
+                log.warning(f"gitleaks executable not found: {cmd[0]}. Skipping scan.")
+                return {"runs": []}
+            try:
+                _, stderr = await asyncio.wait_for(
+                    proc.communicate(), timeout=_DEFAULT_TIMEOUT
+                )
+            except asyncio.TimeoutError as exc:
+                try:
+                    proc.kill()
+                except ProcessLookupError:
+                    pass
+                raise RuntimeError(
+                    f"gitleaks execution timed out after {_DEFAULT_TIMEOUT} seconds"
+                ) from exc
+            if proc.returncode is not None and proc.returncode not in (0, 1):
+                raise RuntimeError(
+                    f"gitleaks exited with code {proc.returncode}: "
+                    f"{stderr.decode(errors='replace').strip()}"
+                )
+            if os.path.exists(out_file):
+                try:
+                    with open(out_file) as fh:
+                        return json.load(fh)
+                except json.JSONDecodeError:
+                    pass
+            return {"runs": []}
+
+
+def run_gitleaks(target_dir: str) -> dict:
+    return GitleaksEngine().run_scan(target_dir, {})
