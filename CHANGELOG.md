@@ -1,6 +1,105 @@
 # CHANGELOG
 
 
+## v0.5.0 (2026-06-27)
+
+### Bug Fixes
+
+- **evidence**: Trigger release for Nist80053Agent parsing fixes
+  ([#14](https://github.com/prakharsingh/audit-packs/pull/14),
+  [`91ab7db`](https://github.com/prakharsingh/audit-packs/commit/91ab7dbc1171aa904d6487db9ed7089d0a62efe9))
+
+trigger release for Nist80053Agent parsing fixes
+
+### Features
+
+- **ecosystem**: Pluggable scanner plugins, pack registry CLI & contribution tooling
+  ([#15](https://github.com/prakharsingh/audit-packs/pull/15),
+  [`990cf7f`](https://github.com/prakharsingh/audit-packs/commit/990cf7f2c365ed53f620ff71e78312900647322f))
+
+* feat: refactor notifications, add onboarding features and vscode extension template
+
+- Add Slack/Jira webhook integration for compliance alert notifications - Implement compact coverage
+  summaries to prevent exceeding Slack payload sizes - Handle full scan failures correctly in Jira
+  tickets - Add interactive bootstrapping wizard (--init) and policy validator (--validate-policy) -
+  Introduce vscode-extension template - Add test coverage for notifications and CLI wizard features
+
+* ci: add workflow to publish vscode extension to marketplace and openvsx
+
+- Add GitHub Actions workflow publish-extension.yml to automatically compile and publish the
+  extension when a new release is cut - Configure tsconfig.json and build scripts in
+  packages/vscode-extension/package.json to compile the extension - Update .gitignore to ignore the
+  compiled out/ directory - Update docs/SETUP.md with instructions on setting up publishing secret
+  tokens
+
+* ci: fix vscode extension packaging metadata, ignore files, and license
+
+- Add repository field to package.json manifest - Add .vscodeignore to exclude development and
+  configuration files from the packaged bundle - Copy main LICENSE into extension folder for
+  inclusion in VS Marketplace
+
+* ci: add PyPI automatic publishing workflow
+
+* docs: update installation & release docs and rename package to audit-packs
+
+* test: allow expected quality gate failure in docker smoke test
+
+* ci(vscode-extension): publish to Open VSX Registry and support local VS VSIX install
+
+* build: configure uv link-mode to copy for cross-filesystem compatibility
+
+* feat(ecosystem): pluggable scanner plugins, pack registry CLI, and docs
+
+- Add DeclarativeEngine and load_plugins() to engines.py for YAML-based and entrypoint-based
+  third-party scanner plugin support - Add --scanners-dir CLI arg to analyze() and assess() enabling
+  concurrent execution of custom plugins alongside built-in engines - Add pack subcommand namespace:
+  pack init, validate, test, publish, install - pack install resolves GitHub owner/repo@tag
+  shorthands, HTTPS URLs, and local tarballs; extracts and caches to ~/.audit-packs/installed/ -
+  pack publish packages controls.yaml, metadata.json, rules/, agents/ into a versioned .tar.gz for
+  redistribution - Update _pack_path() to transparently resolve packs from both local dir and global
+  ~/.audit-packs/installed/ registry cache - Add unit tests covering declarative engine loading,
+  pack init/validate, and publish/install roundtrip (238 passed) - Update docs/SETUP.md with scanner
+  plugin and pack CLI usage - Update docs/ONBOARDING.md to use pack CLI for crosswalk pack authoring
+  - fix(ci): use GH_TOKEN env var instead of github_token input for python-semantic-release v9 to
+  resolve GITHUB_-prefixed secret error
+
+* fix(ci): use github.token instead of secrets.GITHUB_TOKEN
+
+GitHub's validator rejects any secrets context reference whose name starts with GITHUB_.
+  github.token is the identical built-in token but accessed through the github expression context,
+  bypassing the restriction entirely.
+
+* fix(engines): gracefully skip missing scanner executables
+
+Instead of crashing with a RuntimeError when checkov or semgrep are not on PATH (FileNotFoundError
+  from subprocess), print a clear warning to stderr and return an empty SARIF so other engines can
+  still run.
+
+* fix(init): use github.token instead of secrets.GITHUB_TOKEN in generated audit.yml
+
+The --init wizard was embedding GITHUB_TOKEN as an env var name in the generated
+  .github/workflows/audit.yml template. GitHub's validator rejects any env/secret name starting with
+  GITHUB_ in user-defined contexts.
+
+Switched to GH_TOKEN: ${{ github.token }} which is the identical built-in token via the github
+  expression context and has no naming restriction.
+
+* fix(cli): bundle default semgrep rules and fix crash when rules_path is empty
+
+### Refactoring
+
+- **evidence**: Robust dependency parsing and line lookup in Nist80053Agent
+  ([#13](https://github.com/prakharsingh/audit-packs/pull/13),
+  [`d0ccfe0`](https://github.com/prakharsingh/audit-packs/commit/d0ccfe05a1e33ae003cf78e0e676c87b41659baa))
+
+- Replaced simple substring checks in _find_toml_line with strict regex boundary checks
+  (?<![a-zA-Z0-9_.-]){term}(?![a-zA-Z0-9_.-]) to prevent package name collisions (e.g. matching
+  'flask-app' when looking for 'flask'). - Stripped packaging extras (e.g. 'flask[async]') before
+  running validation regex or looking up line numbers. - Added unpinned optional-dependencies check
+  in PEP 621 pyproject.toml. - Supported modern Poetry group dependencies (e.g. group.dev) and
+  legacy dev-dependencies. - Added comprehensive unit tests in tests/test_agents.py.
+
+
 ## v0.4.0 (2026-06-27)
 
 ### Features
