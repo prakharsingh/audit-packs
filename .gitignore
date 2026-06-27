@@ -25,6 +25,7 @@ node_modules/
 .claude/
 .gemini/
 .superpowers/
+docs/superpowers/
 AGENTS.md
 gemini.md
 CLAUDE.md
