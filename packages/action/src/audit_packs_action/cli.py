@@ -656,41 +656,561 @@ def assess(
     return compute_coverage(surfaced_cfs, packs_dir, frameworks)
 
 
+def validate_policies(packs_dir: str, rules_path: str) -> int:
+    """Validate compliance packs and semgrep rules schemas."""
+    import yaml
+    import glob
+
+    print("=" * 60)
+    print("Policy Validation Suite")
+    print("=" * 60)
+
+    errors = 0
+
+    # 1. Validate Packs
+    if os.path.exists(packs_dir):
+        print(f"\nChecking compliance packs in {packs_dir}...")
+        pack_files = glob.glob(
+            os.path.join(packs_dir, "**/controls.yaml"), recursive=True
+        )
+        if not pack_files:
+            print("  ℹ No controls.yaml pack files found.")
+        for pf in pack_files:
+            try:
+                with open(pf) as fh:
+                    data = yaml.safe_load(fh)
+
+                # Check required pack keys
+                missing = []
+                for k in ("title", "controls"):
+                    if k not in data:
+                        missing.append(k)
+                if missing:
+                    print(f"  ❌ {pf}: Missing required keys: {', '.join(missing)}")
+                    errors += 1
+                    continue
+
+                controls = data.get("controls", [])
+                if not isinstance(controls, list):
+                    print(f"  ❌ {pf}: 'controls' must be a list of mappings.")
+                    errors += 1
+                    continue
+
+                ctrl_errors = 0
+                for c in controls:
+                    if not isinstance(c, dict):
+                        ctrl_errors += 1
+                        continue
+                    if "id" not in c or "title" not in c:
+                        ctrl_errors += 1
+
+                if ctrl_errors:
+                    print(
+                        f"  ❌ {pf}: {ctrl_errors} controls are missing 'id' or 'title'."
+                    )
+                    errors += ctrl_errors
+                else:
+                    print(f"  ✅ {pf} is valid ({len(controls)} controls).")
+            except Exception as e:
+                print(f"  ❌ {pf}: Failed to parse YAML: {e}")
+                errors += 1
+    else:
+        print(f"  ❌ Packs directory '{packs_dir}' does not exist.")
+        errors += 1
+
+    # 2. Validate Semgrep Rules
+    if os.path.exists(rules_path):
+        print(f"\nChecking custom Semgrep rules in {rules_path}...")
+        rule_files = glob.glob(os.path.join(rules_path, "*.yaml")) + glob.glob(
+            os.path.join(rules_path, "*.yml")
+        )
+        if not rule_files:
+            print("  ℹ No Semgrep rule files found.")
+        for rf in rule_files:
+            try:
+                with open(rf) as fh:
+                    data = yaml.safe_load(fh)
+                if not isinstance(data, dict) or "rules" not in data:
+                    print(f"  ❌ {rf}: Missing 'rules' key or not a dictionary.")
+                    errors += 1
+                    continue
+                rules = data.get("rules", [])
+                if not isinstance(rules, list):
+                    print(f"  ❌ {rf}: 'rules' must be a list of rules.")
+                    errors += 1
+                    continue
+
+                rule_errors = 0
+                for r in rules:
+                    if not isinstance(r, dict):
+                        rule_errors += 1
+                        continue
+                    missing_r = [
+                        k
+                        for k in ("id", "message", "severity", "languages")
+                        if k not in r
+                    ]
+                    if missing_r:
+                        rule_errors += 1
+                if rule_errors:
+                    print(
+                        f"  ❌ {rf}: {rule_errors} rules are missing required fields (id, message, severity, languages)."
+                    )
+                    errors += rule_errors
+                else:
+                    print(f"  ✅ {rf} is valid ({len(rules)} rules).")
+            except Exception as e:
+                print(f"  ❌ {rf}: Failed to parse Semgrep rules: {e}")
+                errors += 1
+    else:
+        print(f"  ❌ Rules path '{rules_path}' does not exist.")
+        errors += 1
+
+    print("\n" + "=" * 60)
+    if errors == 0:
+        print("  🎉 Policy and rules validation PASSED!")
+        return 0
+    else:
+        print(f"  ❌ Policy and rules validation FAILED with {errors} errors.")
+        return 1
+
+
+def init_wizard(workspace: str) -> int:
+    """Run an interactive wizard to configure audit-packs."""
+    print("=" * 60)
+    print("              Audit Packs Configuration Wizard")
+    print("=" * 60)
+    print("This wizard will help you set up compliance auditing for your repo.")
+
+    print("\nWhich compliance frameworks would you like to target?")
+    print(
+        "Supported: nist-800-53, soc2, gdpr, hipaa, iso27001, pci-dss, fedramp, org-policy"
+    )
+    frameworks_input = input(
+        "Target frameworks (comma-separated, default: nist-800-53,soc2): "
+    ).strip()
+    if not frameworks_input:
+        frameworks_input = "nist-800-53,soc2"
+
+    models_config = "audit-models.yaml"
+    models_path = os.path.join(workspace, models_config)
+    print(f"\nCreating AI Adjudication model router config: {models_config}...")
+    models_content = """# audit-models.yaml
+# Map roles to AI providers for confidence scoring consensus.
+# Define API keys in your environment variables.
+models:
+  detector:
+    provider: openai
+    model: gpt-4o
+    api_key_env: OPENAI_API_KEY
+
+  verifier:
+    provider: anthropic
+    model: claude-3-5-sonnet
+    api_key_env: ANTHROPIC_API_KEY
+
+  adversarial:
+    provider: google
+    model: gemini-1.5-pro
+    api_key_env: GOOGLE_API_KEY
+
+  judge:
+    provider: openai
+    model: gpt-4o
+    api_key_env: OPENAI_API_KEY
+"""
+    if os.path.exists(models_path):
+        overwrite = (
+            input(f"File {models_config} already exists. Overwrite? (y/N): ")
+            .lower()
+            .strip()
+        )
+        if overwrite == "y":
+            with open(models_path, "w") as f:
+                f.write(models_content)
+            print("  Updated audit-models.yaml")
+        else:
+            print("  Skipped audit-models.yaml")
+    else:
+        with open(models_path, "w") as f:
+            f.write(models_content)
+        print("  Created audit-models.yaml")
+
+    workflow_dir = os.path.join(workspace, ".github", "workflows")
+    workflow_path = os.path.join(workflow_dir, "audit.yml")
+    print("\nCreating GitHub Actions workflow: .github/workflows/audit.yml...")
+    workflow_content = f"""name: Audit Packs Compliance Scan
+
+on:
+  pull_request:
+    branches: [ main, master ]
+  push:
+    branches: [ main, master ]
+
+jobs:
+  compliance-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write # Required for posting PR review inline comments
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for diff-based scan
+
+      - name: Run Compliance Scan
+        uses: prakharsingh/audit-packs@v1
+        with:
+          frameworks: {frameworks_input}
+          fail-on: high
+          scan-mode: both
+          adjudication-mode: off # Change to 'enforce' or 'advisory' to enable AI
+        env:
+          GITHUB_TOKEN: ${{{{ secrets.GITHUB_TOKEN }}}}
+          # Un-comment if AI adjudication is enabled:
+          # OPENAI_API_KEY: ${{{{ secrets.OPENAI_API_KEY }}}}
+          # ANTHROPIC_API_KEY: ${{{{ secrets.ANTHROPIC_API_KEY }}}}
+"""
+    os.makedirs(workflow_dir, exist_ok=True)
+    if os.path.exists(workflow_path):
+        overwrite = (
+            input("File .github/workflows/audit.yml already exists. Overwrite? (y/N): ")
+            .lower()
+            .strip()
+        )
+        if overwrite == "y":
+            with open(workflow_path, "w") as f:
+                f.write(workflow_content)
+            print("  Updated workflow configuration.")
+        else:
+            print("  Skipped workflow configuration.")
+    else:
+        with open(workflow_path, "w") as f:
+            f.write(workflow_content)
+        print("  Created workflow configuration.")
+
+    org_policy_dir = os.path.join(workspace, "packs", "org-policy")
+    org_policy_path = os.path.join(org_policy_dir, "controls.yaml")
+    print(
+        "\nCreating Custom Policy-as-Code Pack template: packs/org-policy/controls.yaml..."
+    )
+    org_policy_content = """title: Internal Acme Corp Security Policy
+crosswalk: nist-800-53
+schema_version: '2'
+framework: org-policy
+controls:
+  - id: ACME-ENC-1
+    title: All Datastores Must Use Encryption at Rest
+    maps_to:
+      - SC-13
+      - SC-28
+  - id: ACME-NET-1
+    title: Restrict Inbound Network Access to Secured Boundaries
+    maps_to:
+      - SC-7
+  - id: ACME-LOG-1
+    title: Enable Centralized System and Audit Logging
+    maps_to:
+      - AU-2
+"""
+    os.makedirs(org_policy_dir, exist_ok=True)
+    if os.path.exists(org_policy_path):
+        overwrite = (
+            input(
+                "File packs/org-policy/controls.yaml already exists. Overwrite? (y/N): "
+            )
+            .lower()
+            .strip()
+        )
+        if overwrite == "y":
+            with open(org_policy_path, "w") as f:
+                f.write(org_policy_content)
+            print("  Updated custom policy template.")
+        else:
+            print("  Skipped custom policy template.")
+    else:
+        with open(org_policy_path, "w") as f:
+            f.write(org_policy_content)
+        print("  Created custom policy template.")
+
+    print("\n" + "=" * 60)
+    print("🎉 Onboarding and setup complete!")
+    print("To run a local compliance scan, use:")
+    print(f"  audit-packs --frameworks {frameworks_input}")
+    print("=" * 60)
+    return 0
+
+
+def print_local_report(scored_findings, threshold, weights):
+    """Print a beautiful console compliance report for local runs."""
+    from collections import defaultdict
+
+    by_framework = defaultdict(list)
+    for sf in scored_findings:
+        fw = sf.result.control_finding.framework
+        by_framework[fw].append(sf)
+
+    print("\n\033[1m" + "=" * 60)
+    print("                  AUDIT PACKS SCAN SUMMARY")
+    print("=" * 60 + "\033[0m")
+
+    print("\033[1m| Framework   | Findings | Suppressed | Avg Score |\033[0m")
+    print("|-------------|----------|------------|-----------|")
+
+    total_surfaced = 0
+    total_suppressed = 0
+    for fw, sfs in sorted(by_framework.items()):
+        surfaced = [s for s in sfs if s.surfaced]
+        suppressed = [s for s in sfs if not s.surfaced]
+        avg = (
+            round(sum(s.finding_score for s in surfaced) / len(surfaced) * 100)
+            if surfaced
+            else 0
+        )
+        print(f"| {fw:<11} | {len(surfaced):<8} | {len(suppressed):<10} | {avg:<8}% |")
+        total_surfaced += len(surfaced)
+        total_suppressed += len(suppressed)
+    print(
+        f"\nTotal: \033[91m{total_surfaced} surfaced\033[0m, \033[90m{total_suppressed} suppressed (FP)\033[0m. Threshold: {round(threshold * 100)}%."
+    )
+
+    surfaced_findings = [sf for sf in scored_findings if sf.surfaced]
+    if surfaced_findings:
+        print("\n\033[1m" + "-" * 60)
+        print("Surfaced Compliance Violations:")
+        print("-" * 60 + "\033[0m")
+        for sf in surfaced_findings:
+            cf = sf.result.control_finding
+            f = cf.finding
+            score_pct = round(sf.finding_score * 100)
+            print(
+                f"\033[91m● [{cf.framework.upper()} / {cf.control_id} — {cf.control_title}]\033[0m score: {score_pct}%"
+            )
+            print(
+                f"  Severity: \033[1m{f.severity}\033[0m | Engine: {f.engine} ({f.check_id})"
+            )
+            print(f"  Location: \033[36m{f.file}:{f.line}\033[0m")
+            print(f"  Finding:  {f.message}")
+            print(f"  Evidence: \033[90m{f.evidence}\033[0m")
+            if sf.result.rationale:
+                print(f"  Rationale: {sf.result.rationale}")
+            print()
+
+
+def print_local_coverage_matrix(control_statuses):
+    """Print the control coverage matrix directly to the console."""
+    from collections import defaultdict
+    from audit_packs_core.models import AssessmentStatus
+
+    by_fw = defaultdict(list)
+    for s in control_statuses:
+        by_fw[s.framework].append(s)
+
+    print("\n\033[1m" + "=" * 60)
+    print("                COMPLIANCE CONTROL COVERAGE")
+    print("=" * 60 + "\033[0m")
+
+    status_colors = {
+        AssessmentStatus.PASS: "\033[92m✅ PASS\033[0m",
+        AssessmentStatus.FAIL: "\033[91m❌ FAIL\033[0m",
+        AssessmentStatus.MANUAL: "\033[93m📋 MANUAL\033[0m",
+        AssessmentStatus.NOT_APPLICABLE: "\033[90m➖ N/A\033[0m",
+    }
+
+    for fw, fw_statuses in sorted(by_fw.items()):
+        n_pass = sum(1 for s in fw_statuses if s.status == AssessmentStatus.PASS)
+        n_fail = sum(1 for s in fw_statuses if s.status == AssessmentStatus.FAIL)
+        n_manual = sum(1 for s in fw_statuses if s.status == AssessmentStatus.MANUAL)
+        n_total = len(fw_statuses)
+
+        print(
+            f"\n\033[1m{fw.upper()} Framework Summary:\033[0m {n_pass} Pass, {n_fail} Fail, {n_manual} Manual ({n_total} total)"
+        )
+        print("-" * 75)
+        print(
+            f"\033[1m| {'Control':<10} | {'Status':<12} | {'Findings':<8} | {'Title':<35} |\033[0m"
+        )
+        print("-" * 75)
+        for s in fw_statuses:
+            status_lbl = status_colors.get(s.status, s.status.value.upper())
+            title_truncated = (
+                s.control_title[:35] + "..."
+                if len(s.control_title) > 35
+                else s.control_title
+            )
+            print(
+                f"| {s.control_id:<10} | {status_lbl:<21} | {len(s.findings):<8} | {title_truncated:<35} |"
+            )
+        print("-" * 75)
+
+
 def main() -> int:
     import json as _json
-    from audit_packs_ai.adjudicate import load_model_config
+    import argparse
+    from audit_packs_ai.adjudicate import load_model_config, AdjudicationMode
     from audit_packs_ai.confidence import DEFAULT_WEIGHTS
-    from audit_packs_action.report import build_summary_comment
+    from audit_packs_action.report import (
+        build_summary_comment,
+        post_slack_message,
+        create_jira_issue,
+        build_compact_coverage_summary,
+    )
 
-    repo = os.environ["GITHUB_REPOSITORY"]
-    token = os.environ["GITHUB_TOKEN"]
+    parser = argparse.ArgumentParser(
+        description="audit-packs compliance scan orchestration CLI."
+    )
+    parser.add_argument(
+        "--frameworks",
+        default=os.environ.get("FRAMEWORKS", "nist-800-53"),
+        help="Frameworks to audit (comma/newline separated)",
+    )
+    parser.add_argument(
+        "--fail-on",
+        default=os.environ.get("FAIL_ON", "high"),
+        choices=SEVERITIES,
+        help="Severity failure threshold",
+    )
+    parser.add_argument(
+        "--scan-mode",
+        default=os.environ.get("SCAN_MODE", "both"),
+        choices=list(_VALID_SCAN_MODES),
+        help="Scan mode (diff, full, both)",
+    )
+    parser.add_argument(
+        "--workspace",
+        default=os.environ.get("GITHUB_WORKSPACE", "."),
+        help="Repo workspace directory",
+    )
+    parser.add_argument(
+        "--base-ref",
+        default=os.environ.get("BASE_REF", "origin/main"),
+        help="Base git branch/ref to diff against",
+    )
+    parser.add_argument(
+        "--packs-dir",
+        default=os.environ.get("PACKS_DIR"),
+        help="Directory containing compliance framework packs",
+    )
+    parser.add_argument(
+        "--rules-path",
+        default=os.environ.get("RULES_PATH"),
+        help="Directory containing semgrep rules",
+    )
+    parser.add_argument(
+        "--adjudication-mode",
+        default=os.environ.get("ADJUDICATION_MODE", "off"),
+        help="LLM consensus adjudication mode (off, advisory, enforce)",
+    )
+    parser.add_argument(
+        "--confidence-threshold",
+        default=os.environ.get("CONFIDENCE_THRESHOLD", "0.70"),
+        help="Composite confidence threshold for filtering",
+    )
+    parser.add_argument(
+        "--codeql-sarif",
+        default=os.environ.get("CODEQL_SARIF_DIR", ""),
+        help="Path to directory containing CodeQL SARIF outputs",
+    )
+    parser.add_argument(
+        "--trivy",
+        action="store_true",
+        default=os.environ.get("TRIVY_ENABLED", "false").lower() == "true",
+        help="Enable Trivy scanning",
+    )
+    parser.add_argument(
+        "--trivy-image",
+        default=os.environ.get("TRIVY_IMAGE", ""),
+        help="Trivy image target",
+    )
+    parser.add_argument(
+        "--tfsec",
+        action="store_true",
+        default=os.environ.get("TFSEC_ENABLED", "false").lower() == "true",
+        help="Enable tfsec scanning",
+    )
+    parser.add_argument(
+        "--gitleaks",
+        action="store_true",
+        default=os.environ.get("GITLEAKS_ENABLED", "false").lower() == "true",
+        help="Enable gitleaks secret detection",
+    )
+    parser.add_argument(
+        "--init",
+        action="store_true",
+        help="Interactive configuration wizard to bootstrap compliance",
+    )
+    parser.add_argument(
+        "--validate-policy",
+        action="store_true",
+        help="Validate custom compliance packs and rules schema",
+    )
+    parser.add_argument(
+        "--slack-webhook",
+        default=os.environ.get("SLACK_WEBHOOK_URL"),
+        help="Slack Webhook URL for scan alerts",
+    )
+    parser.add_argument(
+        "--jira-url",
+        default=os.environ.get("JIRA_URL"),
+        help="Jira Server/Cloud URL",
+    )
+    parser.add_argument(
+        "--jira-email",
+        default=os.environ.get("JIRA_EMAIL"),
+        help="Jira email/username for API auth",
+    )
+    parser.add_argument(
+        "--jira-token",
+        default=os.environ.get("JIRA_API_TOKEN"),
+        help="Jira API Token",
+    )
+    parser.add_argument(
+        "--jira-project",
+        default=os.environ.get("JIRA_PROJECT"),
+        help="Jira Project Key",
+    )
+
+    # Use parse_known_args to allow parsing when called by pytest/other scripts that inject extra args
+    args, unknown = parser.parse_known_args()
+
+    if args.init:
+        return init_wizard(args.workspace)
+
+    packs_dir = args.packs_dir
+    if not packs_dir or not os.path.exists(packs_dir):
+        candidate = os.path.join(args.workspace, "packs")
+        if os.path.exists(candidate):
+            packs_dir = candidate
+        else:
+            packs_dir = "/app/packs"
+
+    rules_path = args.rules_path
+    if not rules_path or not os.path.exists(rules_path):
+        candidate = os.path.join(args.workspace, "rules")
+        if os.path.exists(candidate):
+            rules_path = candidate
+        else:
+            rules_path = "/app/rules"
+
+    if args.validate_policy:
+        return validate_policies(packs_dir, rules_path)
+
+    repo = os.environ.get("GITHUB_REPOSITORY", "")
+    token = os.environ.get("GITHUB_TOKEN", "")
     pr_number = os.environ.get("PR_NUMBER", "")
-    base_ref = os.environ.get("BASE_REF", "origin/main")
-    commit_sha = os.environ["GITHUB_SHA"]
-    workspace = os.environ.get("GITHUB_WORKSPACE", ".")
-    packs_dir = os.environ.get("PACKS_DIR", "/app/packs")
-    rules_path = os.environ.get("RULES_PATH", "/app/rules")
+    commit_sha = os.environ.get("GITHUB_SHA", "")
+    workspace = args.workspace
 
-    raw_frameworks = os.environ.get("FRAMEWORKS", "nist-800-53")
     try:
-        frameworks = normalize_frameworks(raw_frameworks)
+        frameworks = normalize_frameworks(args.frameworks)
     except ValueError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 2
 
-    fail_on = os.environ.get("FAIL_ON", "high")
-    if fail_on not in SEVERITIES:
-        print(
-            f"Error: FAIL_ON='{fail_on}' is not valid. Choose from: {', '.join(SEVERITIES)}",
-            file=sys.stderr,
-        )
-        return 2
-
-    scan_mode = os.environ.get("SCAN_MODE", "both").lower()
-    if scan_mode not in _VALID_SCAN_MODES:
-        print(f"Error: SCAN_MODE='{scan_mode}' is not valid.", file=sys.stderr)
-        return 2
-
+    fail_on = args.fail_on
+    scan_mode = args.scan_mode
     emit_oscal = os.environ.get("EMIT_OSCAL", "true").lower() == "true"
     emit_coverage = os.environ.get("EMIT_COVERAGE", "true").lower() == "true"
     emit_sarif = os.environ.get("EMIT_SARIF", "true").lower() == "true"
@@ -701,24 +1221,22 @@ def main() -> int:
     )
     seo_canonical_url = os.environ.get("SEO_CANONICAL_URL", "")
 
-    adj_mode_str = os.environ.get("ADJUDICATION_MODE", "off").lower()
+    adj_mode_str = args.adjudication_mode.lower()
     adj_mode = (
         AdjudicationMode(adj_mode_str)
         if adj_mode_str in {m.value for m in AdjudicationMode}
         else AdjudicationMode.OFF
     )
 
-    threshold_str = os.environ.get("CONFIDENCE_THRESHOLD", "0.70")
     try:
-        threshold = float(threshold_str)
+        threshold = float(args.confidence_threshold)
     except ValueError:
         print(
-            f"Error: CONFIDENCE_THRESHOLD='{threshold_str}' is not a valid float.",
+            f"Error: CONFIDENCE_THRESHOLD='{args.confidence_threshold}' is not a valid float.",
             file=sys.stderr,
         )
         return 2
 
-    # Load score weights
     weights = DEFAULT_WEIGHTS
     score_weights_env = os.environ.get("SCORE_WEIGHTS", "")
     if score_weights_env:
@@ -738,16 +1256,16 @@ def main() -> int:
         print(f"Error loading model config: {exc}", file=sys.stderr)
         return 2
 
-    codeql_sarif_dir = os.environ.get("CODEQL_SARIF_DIR", "")
+    codeql_sarif_dir = args.codeql_sarif
     ast_rules_dir = os.environ.get("AST_RULES_DIR", "ast-rules")
     if not os.path.isabs(ast_rules_dir):
         ast_rules_dir = os.path.join(workspace, ast_rules_dir)
-    trivy_enabled = os.environ.get("TRIVY_ENABLED", "false").lower() == "true"
-    trivy_image = os.environ.get("TRIVY_IMAGE", "")
-    tfsec_enabled = os.environ.get("TFSEC_ENABLED", "false").lower() == "true"
-    gitleaks_enabled = os.environ.get("GITLEAKS_ENABLED", "false").lower() == "true"
 
-    # Historical precision
+    trivy_enabled = args.trivy
+    trivy_image = args.trivy_image
+    tfsec_enabled = args.tfsec
+    gitleaks_enabled = args.gitleaks
+
     precision_path = os.path.join(".audit-cache", "precision.json")
     precision_data: dict = {}
     if os.path.exists(precision_path):
@@ -777,7 +1295,6 @@ def main() -> int:
             tmp = fh.name
         os.replace(tmp, precision_path)
 
-    # Fetch PR context (best-effort)
     pr_context = None
     if adj_mode is not AdjudicationMode.OFF and pr_number:
         try:
@@ -790,9 +1307,11 @@ def main() -> int:
             logging.getLogger(__name__).warning("Could not fetch PR context: %s", exc)
 
     gate_tripped = False
+    scored = []
+    control_statuses = []
 
     if scan_mode in ("diff", "both"):
-        diff_text = run_git_diff(workspace, base_ref)
+        diff_text = run_git_diff(workspace, args.base_ref)
         changed = parse_unified_diff(diff_text)
         scored = analyze(
             workspace,
@@ -817,7 +1336,11 @@ def main() -> int:
 
         comments = build_comments(scored, commit_sha)
         summary = build_summary_comment(scored, threshold=threshold, weights=weights)
-        if pr_number:
+
+        if not repo:
+            print_local_report(scored, threshold, weights)
+
+        if pr_number and repo:
             post_review(
                 comments,
                 summary,
@@ -826,6 +1349,8 @@ def main() -> int:
                 token=token,
                 commit_sha=commit_sha,
             )
+        elif not repo:
+            pass
         else:
             print(
                 "PR_NUMBER not set; skipping posting PR review comment.",
@@ -853,6 +1378,10 @@ def main() -> int:
             tfsec_enabled=tfsec_enabled,
             gitleaks_enabled=gitleaks_enabled,
         )
+
+        if not repo:
+            print_local_coverage_matrix(control_statuses)
+
         if emit_oscal:
             oscal_path = os.path.join(workspace, "oscal.json")
             oscal_data = to_assessment_results(control_statuses)
@@ -881,6 +1410,36 @@ def main() -> int:
             with open(sarif_path, "w") as fh:
                 _json.dump(build_sarif(all_cfs), fh, indent=2)
             print(f"::notice::Aggregate SARIF written to {sarif_path}")
+
+        if scan_mode == "full":
+            all_cfs = [cf for cs in control_statuses for cf in cs.findings]
+            if gate_failed(all_cfs, fail_on):
+                gate_tripped = True
+
+    # Slack and Jira Notifications
+    if args.slack_webhook or (args.jira_url and args.jira_project):
+        if scored:
+            summary_text = build_summary_comment(
+                scored, threshold=threshold, weights=weights
+            )
+        elif control_statuses:
+            summary_text = build_compact_coverage_summary(control_statuses)
+        else:
+            summary_text = "Compliance scan completed. No findings detected."
+
+        if args.slack_webhook:
+            post_slack_message(args.slack_webhook, scored, summary_text, gate_tripped)
+
+        if args.jira_url and gate_tripped:
+            create_jira_issue(
+                args.jira_url,
+                args.jira_email,
+                args.jira_token,
+                args.jira_project,
+                scored,
+                summary_text,
+                control_statuses=control_statuses,
+            )
 
     return 1 if gate_tripped else 0
 

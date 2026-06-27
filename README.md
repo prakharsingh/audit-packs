@@ -38,6 +38,8 @@ Checkov and Semgrep are excellent at finding IaC misconfigurations. They are not
 
 ## Quick start
 
+Refer to the complete [Setup & Integration Guide](docs/SETUP.md) for detailed CLI, VS Code extension, and notification configuration.
+
 ```yaml
 # .github/workflows/audit.yml
 name: Audit Packs
@@ -527,6 +529,8 @@ If `codeql-sarif` is absent or the directory is empty, CodeQL findings are silen
 ---
 
 ## Local development
+
+For complete setup and configuration details, see the [Setup & Integration Guide](docs/SETUP.md).
 
 **Prerequisites:** Python 3.11+, `git`, [`uv`](https://docs.astral.sh/uv/) (recommended for the workspace install)
 

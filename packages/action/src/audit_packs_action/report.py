@@ -378,3 +378,212 @@ def post_review(comments, summary, *, repo, pr_number, token, commit_sha) -> Non
     }
     resp = requests.post(url, json=payload, headers=headers, timeout=30)
     resp.raise_for_status()
+
+
+def post_slack_message(
+    webhook_url: str, scored_findings: list, summary: str, is_failure: bool
+) -> None:
+    """Post summary and finding alerts to Slack webhook."""
+    if not webhook_url:
+        return
+
+    # Guard against Slack's 3000-character limit for section text
+    if len(summary) > 2900:
+        summary = summary[:2850] + "\n\n... (summary truncated due to size limit)"
+
+    color = "#FF0000" if is_failure else "#00FF00"
+    emoji = "🚨" if is_failure else "✅"
+
+    blocks = [
+        {
+            "type": "header",
+            "text": {
+                "type": "plain_text",
+                "text": f"{emoji} Compliance Audit Scan Result",
+                "emoji": True,
+            },
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"Status: *{'FAILED' if is_failure else 'PASSED'}*\n{summary}",
+            },
+        },
+    ]
+
+    surfaced = [sf for sf in scored_findings if sf.surfaced]
+    if surfaced:
+        blocks.append({"type": "divider"})
+        blocks.append(
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"*Top Surfaced Compliance Findings ({len(surfaced)} total):*",
+                },
+            }
+        )
+
+        for sf in surfaced[:5]:
+            cf = sf.result.control_finding
+            f = cf.finding
+            blocks.append(
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": (
+                            f"• *[{cf.framework.upper()} / {cf.control_id}]* — *{cf.control_title}*\n"
+                            f"  Severity: `{f.severity}` | Engine: `{f.engine}`\n"
+                            f"  File: `{f.file}:{f.line}`\n"
+                            f"  Finding: {f.message}\n"
+                            f"  Evidence: `{f.evidence}`"
+                        ),
+                    },
+                }
+            )
+
+        if len(surfaced) > 5:
+            blocks.append(
+                {
+                    "type": "context",
+                    "elements": [
+                        {
+                            "type": "mrkdwn",
+                            "text": f"And {len(surfaced) - 5} more findings... view OSCAL or HTML report for details.",
+                        }
+                    ],
+                }
+            )
+
+    try:
+        payload = {"attachments": [{"color": color, "blocks": blocks}]}
+        resp = requests.post(webhook_url, json=payload, timeout=10)
+        resp.raise_for_status()
+    except Exception as e:
+        import sys
+
+        print(f"Warning: Failed to post Slack notification: {e}", file=sys.stderr)
+
+
+def create_jira_issue(
+    jira_url: str,
+    jira_email: str,
+    jira_api_token: str,
+    jira_project: str,
+    scored_findings: list,
+    summary: str,
+    control_statuses: list = None,
+) -> None:
+    """Create a Jira issue for compliance scan failure."""
+    if not (jira_url and jira_email and jira_api_token and jira_project):
+        return
+
+    surfaced = [sf for sf in scored_findings if sf.surfaced]
+    failed_controls = []
+    if control_statuses:
+        failed_controls = [
+            cs for cs in control_statuses if cs.status == AssessmentStatus.FAIL
+        ]
+
+    if not surfaced and not failed_controls:
+        return
+
+    jira_url = jira_url.rstrip("/")
+    api_url = f"{jira_url}/rest/api/3/issue"
+
+    auth = (jira_email, jira_api_token)
+    headers = {"Accept": "application/json", "Content-Type": "application/json"}
+
+    if surfaced:
+        description_text = (
+            f"Compliance scan failed with {len(surfaced)} surfaced findings.\n\n"
+            f"{summary}\n\n"
+            "Failed Controls:\n"
+        )
+        for sf in surfaced:
+            cf = sf.result.control_finding
+            f = cf.finding
+            description_text += (
+                f"- [{cf.framework.upper()} / {cf.control_id}] {cf.control_title} ({f.severity})\n"
+                f"  File: {f.file}:{f.line}\n"
+                f"  Message: {f.message}\n"
+                f"  Evidence: {f.evidence}\n\n"
+            )
+        issue_summary = f"Compliance Audit Failure: {len(surfaced)} findings detected"
+    else:
+        description_text = (
+            f"Compliance scan failed with {len(failed_controls)} failed controls during full scan.\n\n"
+            f"{summary}\n\n"
+            "Failed Controls:\n"
+        )
+        for cs in failed_controls:
+            description_text += (
+                f"- [{cs.framework.upper()} / {cs.control_id}] {cs.control_title}\n"
+            )
+            for f in cs.findings[:5]:
+                description_text += f"  • {f.finding.file}:{f.finding.line} — {f.finding.message} ({f.finding.severity})\n"
+            if len(cs.findings) > 5:
+                description_text += f"  • and {len(cs.findings) - 5} more findings...\n"
+            description_text += "\n"
+        issue_summary = (
+            f"Compliance Audit Failure: {len(failed_controls)} controls failed"
+        )
+
+    payload = {
+        "fields": {
+            "project": {"key": jira_project},
+            "summary": issue_summary,
+            "description": {
+                "type": "doc",
+                "version": 1,
+                "content": [
+                    {
+                        "type": "paragraph",
+                        "content": [{"type": "text", "text": description_text}],
+                    }
+                ],
+            },
+            "issuetype": {"name": "Task"},
+        }
+    }
+
+    try:
+        resp = requests.post(
+            api_url, json=payload, auth=auth, headers=headers, timeout=15
+        )
+        if resp.status_code == 201:
+            issue_key = resp.json().get("key")
+            print(f"::notice::Jira issue created successfully: {issue_key}")
+        else:
+            import sys
+
+            print(
+                f"Warning: Failed to create Jira issue. Response: {resp.text}",
+                file=sys.stderr,
+            )
+    except Exception as e:
+        import sys
+
+        print(f"Warning: Failed to contact Jira API: {e}", file=sys.stderr)
+
+
+def build_compact_coverage_summary(control_statuses: list[ControlStatus]) -> str:
+    """Build a compact, notification-friendly summary of control coverage."""
+    from collections import defaultdict
+
+    by_fw = defaultdict(list)
+    for s in control_statuses:
+        by_fw[s.framework].append(s)
+
+    lines = ["*Compliance Control Coverage:*"]
+    for fw, fw_statuses in sorted(by_fw.items()):
+        n_pass = sum(1 for s in fw_statuses if s.status == AssessmentStatus.PASS)
+        n_fail = sum(1 for s in fw_statuses if s.status == AssessmentStatus.FAIL)
+        n_manual = sum(1 for s in fw_statuses if s.status == AssessmentStatus.MANUAL)
+        n_total = len(fw_statuses)
+        lines.append(
+            f"• *{fw.upper()}* — {n_pass} ✅ PASS · {n_fail} ❌ FAIL · {n_manual} 📋 MANUAL · {n_total} total"
+        )
+    return "\n".join(lines)
