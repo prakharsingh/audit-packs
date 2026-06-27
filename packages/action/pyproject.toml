@@ -1,13 +1,13 @@
 [project]
 name = "audit-packs-action"
 version = "0.1.1"
-description = "GitHub Action that maps IaC security findings to compliance framework controls and posts evidence-backed inline PR review comments."
+description = "GitHub Action that maps IaC security findings to compliance framework controls and posts evidence-backed inline PR review comments. Supports Checkov, Semgrep, CodeQL, Trivy, tfsec, and gitleaks."
 license = { text = "Apache-2.0" }
 requires-python = ">=3.11"
 keywords = [
     "compliance", "security", "nist-800-53", "soc2", "gdpr", "hipaa", "iso27001",
-    "pci-dss", "fedramp", "checkov", "semgrep", "codeql", "github-action", "iac",
-    "sast", "oscal", "grc", "evidence"
+    "pci-dss", "fedramp", "checkov", "semgrep", "codeql", "trivy", "tfsec", "gitleaks",
+    "github-action", "iac", "sast", "oscal", "grc", "evidence", "secrets-detection"
 ]
 classifiers = [
     "Development Status :: 4 - Beta",

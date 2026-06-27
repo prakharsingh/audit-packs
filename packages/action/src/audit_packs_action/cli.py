@@ -27,6 +27,8 @@ from audit_packs_action.engines import (
     run_ast_rules,
     run_trivy_fs,
     run_trivy_image,
+    run_tfsec,
+    run_gitleaks,
 )
 from audit_packs_core.normalize import sarif_to_findings
 from audit_packs_core.diff import parse_unified_diff
@@ -101,6 +103,8 @@ def analyze(
     ast_rules_dir="ast-rules",
     trivy_enabled=False,
     trivy_image="",
+    tfsec_enabled=False,
+    gitleaks_enabled=False,
 ):
     """Run engines, enrich, adjudicate, score, and return ScoredFindings for diff-changed lines."""
     if ast_rules_dir and not os.path.isabs(ast_rules_dir):
@@ -136,6 +140,8 @@ def analyze(
             CodeQLEngine,
             ASTEngine,
             TrivyEngine,
+            TfsecEngine,
+            GitleaksEngine,
         )
 
         checkov_task = asyncio.create_task(CheckovEngine().run_scan_async(repo_dir, {}))
@@ -163,6 +169,16 @@ def analyze(
             if (trivy_enabled and trivy_image)
             else None
         )
+        tfsec_task = (
+            asyncio.create_task(TfsecEngine().run_scan_async(repo_dir, {}))
+            if tfsec_enabled
+            else None
+        )
+        gitleaks_task = (
+            asyncio.create_task(GitleaksEngine().run_scan_async(repo_dir, {}))
+            if gitleaks_enabled
+            else None
+        )
 
         tasks = [checkov_task, semgrep_task, ast_task]
         if codeql_task:
@@ -171,6 +187,10 @@ def analyze(
             tasks.append(trivy_fs_task)
         if trivy_img_task:
             tasks.append(trivy_img_task)
+        if tfsec_task:
+            tasks.append(tfsec_task)
+        if gitleaks_task:
+            tasks.append(gitleaks_task)
         results = await asyncio.gather(*tasks)
 
         c_sarif = results[0]
@@ -184,8 +204,23 @@ def analyze(
         if trivy_fs_task:
             idx += 1
         t_img_sarif = results[idx] if trivy_img_task else {"runs": []}
+        if trivy_img_task:
+            idx += 1
+        tf_sarif = results[idx] if tfsec_task else {"runs": []}
+        if tfsec_task:
+            idx += 1
+        gl_sarif = results[idx] if gitleaks_task else {"runs": []}
 
-        return c_sarif, s_sarif, q_sarif, a_sarif, t_fs_sarif, t_img_sarif
+        return (
+            c_sarif,
+            s_sarif,
+            q_sarif,
+            a_sarif,
+            t_fs_sarif,
+            t_img_sarif,
+            tf_sarif,
+            gl_sarif,
+        )
 
     try:
         import asyncio
@@ -197,6 +232,8 @@ def analyze(
             ast_sarif,
             trivy_fs_sarif,
             trivy_img_sarif,
+            tfsec_sarif,
+            gitleaks_sarif,
         ) = asyncio.run(_run_scans_parallel())
     except RuntimeError:
         checkov_sarif = run_checkov(repo_dir)
@@ -211,6 +248,8 @@ def analyze(
             if (trivy_enabled and trivy_image)
             else {"runs": []}
         )
+        tfsec_sarif = run_tfsec(repo_dir) if tfsec_enabled else {"runs": []}
+        gitleaks_sarif = run_gitleaks(repo_dir) if gitleaks_enabled else {"runs": []}
 
     # Run all registered detection agents for Phase 2
     from audit_packs_evidence.agents import build_agents
@@ -240,6 +279,12 @@ def analyze(
         merged_trivy = {"runs": trivy_runs}
         rule_confidences.update(extract_rule_confidences(merged_trivy, "trivy"))
         findings += sarif_to_findings(merged_trivy, "trivy")
+    if tfsec_sarif.get("runs"):
+        rule_confidences.update(extract_rule_confidences(tfsec_sarif, "tfsec"))
+        findings += sarif_to_findings(tfsec_sarif, "tfsec")
+    if gitleaks_sarif.get("runs"):
+        rule_confidences.update(extract_rule_confidences(gitleaks_sarif, "gitleaks"))
+        findings += sarif_to_findings(gitleaks_sarif, "gitleaks")
 
     for agent in agents:
         agent_sarif = agent.detect(changed_file_texts)
@@ -347,6 +392,8 @@ def assess(
     ast_rules_dir="ast-rules",
     trivy_enabled=False,
     trivy_image="",
+    tfsec_enabled=False,
+    gitleaks_enabled=False,
 ):
     """Run engines over the full workspace and return ControlStatus objects.
 
@@ -385,6 +432,8 @@ def assess(
             SemgrepEngine,
             ASTEngine,
             TrivyEngine,
+            TfsecEngine,
+            GitleaksEngine,
         )
 
         checkov_task = asyncio.create_task(CheckovEngine().run_scan_async(repo_dir, {}))
@@ -406,12 +455,26 @@ def assess(
             if (trivy_enabled and trivy_image)
             else None
         )
+        tfsec_task = (
+            asyncio.create_task(TfsecEngine().run_scan_async(repo_dir, {}))
+            if tfsec_enabled
+            else None
+        )
+        gitleaks_task = (
+            asyncio.create_task(GitleaksEngine().run_scan_async(repo_dir, {}))
+            if gitleaks_enabled
+            else None
+        )
 
         tasks = [checkov_task, semgrep_task, ast_task]
         if trivy_fs_task:
             tasks.append(trivy_fs_task)
         if trivy_img_task:
             tasks.append(trivy_img_task)
+        if tfsec_task:
+            tasks.append(tfsec_task)
+        if gitleaks_task:
+            tasks.append(gitleaks_task)
         results = await asyncio.gather(*tasks)
 
         c_sarif, s_sarif, a_sarif = results[0], results[1], results[2]
@@ -420,8 +483,14 @@ def assess(
         if trivy_fs_task:
             idx += 1
         t_img = results[idx] if trivy_img_task else {"runs": []}
+        if trivy_img_task:
+            idx += 1
+        tf = results[idx] if tfsec_task else {"runs": []}
+        if tfsec_task:
+            idx += 1
+        gl = results[idx] if gitleaks_task else {"runs": []}
 
-        return c_sarif, s_sarif, a_sarif, t_fs, t_img
+        return c_sarif, s_sarif, a_sarif, t_fs, t_img, tf, gl
 
     try:
         import asyncio
@@ -432,6 +501,8 @@ def assess(
             ast_sarif,
             trivy_fs_sarif,
             trivy_img_sarif,
+            tfsec_sarif,
+            gitleaks_sarif,
         ) = asyncio.run(_run_scans_parallel_assess())
     except RuntimeError:
         checkov_sarif = run_checkov(repo_dir)
@@ -443,6 +514,8 @@ def assess(
             if (trivy_enabled and trivy_image)
             else {"runs": []}
         )
+        tfsec_sarif = run_tfsec(repo_dir) if tfsec_enabled else {"runs": []}
+        gitleaks_sarif = run_gitleaks(repo_dir) if gitleaks_enabled else {"runs": []}
 
     codeql_sarif = (
         read_codeql_sarif(codeql_sarif_dir) if codeql_sarif_dir else {"runs": []}
@@ -469,6 +542,12 @@ def assess(
         merged_trivy = {"runs": trivy_runs}
         rule_confidences.update(extract_rule_confidences(merged_trivy, "trivy"))
         findings += sarif_to_findings(merged_trivy, "trivy")
+    if tfsec_sarif.get("runs"):
+        rule_confidences.update(extract_rule_confidences(tfsec_sarif, "tfsec"))
+        findings += sarif_to_findings(tfsec_sarif, "tfsec")
+    if gitleaks_sarif.get("runs"):
+        rule_confidences.update(extract_rule_confidences(gitleaks_sarif, "gitleaks"))
+        findings += sarif_to_findings(gitleaks_sarif, "gitleaks")
 
     for agent in agents:
         agent_sarif = agent.detect(all_file_texts)
@@ -642,6 +721,8 @@ def main() -> int:
         ast_rules_dir = os.path.join(workspace, ast_rules_dir)
     trivy_enabled = os.environ.get("TRIVY_ENABLED", "false").lower() == "true"
     trivy_image = os.environ.get("TRIVY_IMAGE", "")
+    tfsec_enabled = os.environ.get("TFSEC_ENABLED", "false").lower() == "true"
+    gitleaks_enabled = os.environ.get("GITLEAKS_ENABLED", "false").lower() == "true"
 
     # Historical precision
     precision_path = os.path.join(".audit-cache", "precision.json")
@@ -706,6 +787,8 @@ def main() -> int:
             ast_rules_dir=ast_rules_dir,
             trivy_enabled=trivy_enabled,
             trivy_image=trivy_image,
+            tfsec_enabled=tfsec_enabled,
+            gitleaks_enabled=gitleaks_enabled,
         )
         from audit_packs_action.report import build_comments, build_summary_comment
 
@@ -744,6 +827,8 @@ def main() -> int:
             ast_rules_dir=ast_rules_dir,
             trivy_enabled=trivy_enabled,
             trivy_image=trivy_image,
+            tfsec_enabled=tfsec_enabled,
+            gitleaks_enabled=gitleaks_enabled,
         )
         if emit_oscal:
             oscal_path = os.path.join(workspace, "oscal.json")

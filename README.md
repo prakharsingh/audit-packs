@@ -25,8 +25,8 @@ Detection is delegated entirely to best-in-class OSS engines (Checkov, Semgrep, 
 | Semgrep | Supported |
 | CodeQL  | Supported (SARIF dir input) |
 | Trivy   | Supported |
-| tfsec   | Planned |
-| gitleaks | Planned |
+| tfsec   | Supported |
+| gitleaks | Supported |
 
 ---
 
@@ -92,6 +92,8 @@ The action posts inline review comments on changed lines only, writes an OSCAL a
 | `ast-rules` | `ast-rules` | Path to Tree-sitter AST rule scripts directory (reserved for Phase 2; ignored in Phase 1). |
 | `trivy-enabled` | `true` | Enable Trivy filesystem + image scanning. Requires trivy binary ≥ v0.51.1 on the runner. |
 | `trivy-image` | `""` | Docker image reference for `trivy image` scan. Skipped when empty. Only used when `trivy-enabled` is `true`. |
+| `tfsec-enabled` | `true` | Enable tfsec Terraform security checks. |
+| `gitleaks-enabled` | `true` | Enable gitleaks secret detection. |
 
 ## Outputs
 
