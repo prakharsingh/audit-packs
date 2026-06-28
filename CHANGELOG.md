@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v0.5.7 (2026-06-28)
+
+### Bug Fixes
+
+- Update package descriptions and trigger release
+  ([`e6ec15b`](https://github.com/prakharsingh/audit-packs/commit/e6ec15b4d7f02e28832085a07b8c48f42817a63d))
+
+### Documentation
+
+- Rewrite READMEs for PyPI and OpenVSX marketplace
+  ([`cd54cf5`](https://github.com/prakharsingh/audit-packs/commit/cd54cf524b590bad0a9c87f9e4bc1b0a0b7f1160))
+
+
 ## v0.5.6 (2026-06-27)
 
 ### Bug Fixes
